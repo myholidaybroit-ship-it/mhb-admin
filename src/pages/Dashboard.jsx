@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useStore } from "../lib/store.jsx";
+import { admin } from "../lib/api.js";
 import { Badge, Button } from "../ui/kit.jsx";
 import Icon from "../ui/icons.jsx";
 
@@ -227,8 +228,21 @@ function Stat({ icon, value, label, to, tone = "accent", foot, meterPct, meterCo
   );
 }
 
+const byCreatedDesc = (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+
 export default function Dashboard() {
   const { data } = useStore();
+
+  // Authoritative counts + recent lists from the backend /admin/stats endpoint.
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    admin.stats()
+      .then((res) => { if (alive) setStats(res?.data || null); })
+      .catch(() => { /* fall back to client-computed values below */ });
+    return () => { alive = false; };
+  }, []);
+  const counts = stats?.counts;
 
   const m = useMemo(() => {
     const dest = data.destinations || [], wk = data.weekends || [], it = data.itineraries || [], enq = data.enquiries || [];
@@ -271,15 +285,30 @@ export default function Dashboard() {
     const closedEnq = enq.filter((e) => e.status === "Closed").length;
     const avgRating = dest.length ? (dest.reduce((s, d) => s + (d.rating || 0), 0) / dest.length).toFixed(2) : "—";
 
+    // recent lists sorted by createdAt DESC (store order is insertion order, not chronological)
+    const recentIt = [...it].sort(byCreatedDesc).slice(0, 4);
+    const recentEnq = [...enq].sort(byCreatedDesc).slice(0, 4);
+
     return {
       dest, wk, it, enq, regionSeg, wkSeg, enqSeg, themeBars, priceLadder, topReviews, maxReviews,
       finalIt, draftIt, pipeline, totalPax, withPackages, wkOpen, closedEnq, avgRating,
+      recentIt, recentEnq,
     };
   }, [data]);
 
-  const newEnq = m.enq.filter((e) => e.status === "New").length;
+  // Prefer authoritative API counts; fall back to client-computed values from the store.
+  const cnt = (key, fallback) => (counts && counts[key] != null ? counts[key] : fallback);
+  const itCount = cnt("itineraries", m.it.length);
+  const destCount = cnt("destinations", m.dest.length);
+  const wkCount = cnt("weekends", m.wk.length);
+  const enqCount = cnt("bookings", m.enq.length); // total enquiries/bookings
+  const newEnq = cnt("enquiriesNew", m.enq.filter((e) => e.status === "New").length);
   const tone = { New: "info", "In progress": "warning", Closed: "success" };
   const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+
+  // Recent lists: prefer server-provided recentEnquiries, else client-sorted (createdAt DESC).
+  const recentEnq = stats?.recentEnquiries?.length ? stats.recentEnquiries : m.recentEnq;
+  const recentIt = m.recentIt;
 
   const quick = [
     { to: "/itineraries", icon: "doc", label: "Generate itinerary PDF", desc: "Build a client trip" },
@@ -305,16 +334,16 @@ export default function Dashboard() {
 
       {/* primary stats with meters */}
       <div className="xstat-grid">
-        <Stat icon="doc" value={m.it.length} label="Itineraries" to="/itineraries" tone="accent"
+        <Stat icon="doc" value={itCount} label="Itineraries" to="/itineraries" tone="accent"
           meterPct={pct(m.finalIt, m.it.length)} meterColor="#15803d"
           foot={<span><b className="up">{m.finalIt}</b> final · {m.draftIt} draft</span>} />
-        <Stat icon="map" value={m.dest.length} label="Destinations" to="/destinations" tone="ink"
+        <Stat icon="map" value={destCount} label="Destinations" to="/destinations" tone="ink"
           meterPct={pct(m.withPackages, m.dest.length)}
           foot={<span>{m.withPackages}/{m.dest.length} with packages</span>} />
-        <Stat icon="calendar" value={m.wk.length} label="Weekend trips" to="/weekends" tone="ink"
+        <Stat icon="calendar" value={wkCount} label="Weekend trips" to="/weekends" tone="ink"
           meterPct={pct(m.wkOpen, m.wk.length)} meterColor="#15803d"
           foot={<span>{m.wkSeg[0].value} filling fast</span>} />
-        <Stat icon="inbox" value={m.enq.length} label="Enquiries" to="/enquiries" tone="accent"
+        <Stat icon="inbox" value={enqCount} label="Enquiries" to="/enquiries" tone="accent"
           meterPct={pct(m.closedEnq, m.enq.length)} meterColor="#15803d"
           foot={newEnq ? <span><b className="up">{newEnq}</b> new to review</span> : <span>All caught up</span>} />
       </div>
@@ -326,7 +355,7 @@ export default function Dashboard() {
           { ico: "sparkle", n: data.places?.length || 0, l: "Places in library" },
           { ico: "home", n: data.hotels?.length || 0, l: "Hotels saved" },
           { ico: "doc", n: data.blocks?.length || 0, l: "Content blocks" },
-          { ico: "users", n: data.users?.length || 0, l: "Users" },
+          { ico: "users", n: cnt("users", data.users?.length || 0), l: "Users" },
         ].map((p, i, arr) => (
           <div className="pl-item" key={i}>
             <span className="pl-ico"><Icon name={p.ico} size={18} /></span>
@@ -397,7 +426,7 @@ export default function Dashboard() {
       <div className="dash-grid">
         <div className="card">
           <div className="row-between" style={{ marginBottom: "var(--sp-4)" }}><h3 className="section-title">Recent itineraries</h3><Link to="/itineraries" className="see-link">View all</Link></div>
-          {m.it.slice(0, 4).map((i) => (
+          {recentIt.map((i) => (
             <Link to="/itineraries" key={i.id} className="lrow">
               <img className="lrow-thumb" src={i.heroImage} alt="" />
               <div className="grow truncate"><div className="lrow-title truncate">{i.title || "Untitled"}</div><div className="tiny truncate">{i.clientName || "—"} · {i.dateRangeLabel || `${(i.days || []).length} days`}</div></div>
@@ -405,18 +434,21 @@ export default function Dashboard() {
               <Badge tone={i.status === "Final" ? "success" : "warning"} dot>{i.status}</Badge>
             </Link>
           ))}
-          {!m.it.length && <p className="muted">No itineraries yet.</p>}
+          {!recentIt.length && <p className="muted">No itineraries yet.</p>}
         </div>
         <div className="card">
           <div className="row-between" style={{ marginBottom: "var(--sp-4)" }}><h3 className="section-title">Recent enquiries</h3>{newEnq > 0 && <Badge tone="accent">{newEnq} new</Badge>}</div>
-          {m.enq.slice(0, 4).map((e) => (
-            <Link to="/enquiries" key={e.id} className="enq-row">
-              <span className="avatar" style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}>{e.name.charAt(0)}</span>
-              <div className="grow truncate"><div style={{ fontWeight: 600, fontSize: 13 }} className="truncate">{e.subject}</div><div className="tiny truncate">{e.name} · {e.createdAt}</div></div>
-              <Badge tone={tone[e.status]}>{e.status}</Badge>
-            </Link>
-          ))}
-          {!m.enq.length && <p className="muted">No enquiries yet.</p>}
+          {recentEnq.map((e, i) => {
+            const name = e.name || `${e.firstName || ""} ${e.lastName || ""}`.trim() || "—";
+            return (
+              <Link to="/enquiries" key={e.id || e._id || i} className="enq-row">
+                <span className="avatar" style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}>{name.charAt(0)}</span>
+                <div className="grow truncate"><div style={{ fontWeight: 600, fontSize: 13 }} className="truncate">{e.subject || name}</div><div className="tiny truncate">{name} · {e.createdAt}</div></div>
+                <Badge tone={tone[e.status]}>{e.status}</Badge>
+              </Link>
+            );
+          })}
+          {!recentEnq.length && <p className="muted">No enquiries yet.</p>}
           <div className="mt-4"><Link to="/enquiries"><Button variant="ghost" size="sm">View all enquiries</Button></Link></div>
         </div>
       </div>

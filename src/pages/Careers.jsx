@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useSection } from "../lib/store.jsx";
-import { SEED_CAREERS } from "../lib/seed.js";
 import {
   PageHeader, Button, Badge, Drawer, Field, Input, Textarea, Repeater,
   IconButton, ConfirmDialog, useToast, EmptyState, ComboSelect,
@@ -119,8 +118,7 @@ function PageContentDrawer({ careers, onSave, onClose }) {
 export default function Careers() {
   const [stored, setCareers] = useSection("careers");
   const toast = useToast();
-  // self-heal: fall back to seed for any missing pieces (e.g. first run)
-  const c = { ...SEED_CAREERS, ...(stored || {}) };
+  const c = stored || {};
   const roles = c.roles || [];
 
   const [editRole, setEditRole] = useState(null);

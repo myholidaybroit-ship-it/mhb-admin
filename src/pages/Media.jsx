@@ -1,58 +1,97 @@
-import { useMemo, useState } from "react";
-import { useStore } from "../lib/store.jsx";
-import { PageHeader, SearchInput, Badge, useToast, EmptyState } from "../ui/kit.jsx";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { media } from "../lib/api.js";
+import { PageHeader, Button, SearchInput, Badge, IconButton, ConfirmDialog, useToast, EmptyState } from "../ui/kit.jsx";
 import Icon from "../ui/icons.jsx";
 
-// Walk the whole content tree and collect every image/video URL with a path label.
-function collectMedia(obj, path = "", out = []) {
-  if (obj == null) return out;
-  if (typeof obj === "string") {
-    if (/^https?:\/\//.test(obj) && /\.(avif|jpe?g|png|webp|gif|svg|mp4|webm)(\?|$)/i.test(obj)) {
-      out.push({ url: obj, path, type: /\.(mp4|webm)(\?|$)/i.test(obj) ? "video" : "image" });
-    }
-    return out;
-  }
-  if (Array.isArray(obj)) {
-    obj.forEach((v, i) => collectMedia(v, `${path}[${i}]`, out));
-    return out;
-  }
-  if (typeof obj === "object") {
-    for (const k of Object.keys(obj)) collectMedia(obj[k], path ? `${path}.${k}` : k, out);
-  }
-  return out;
+const isVideo = (a) => a.type === "video" || /^video\//.test(a.mime || "") || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(a.url || "");
+
+function formatBytes(n) {
+  if (!n && n !== 0) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function Media() {
-  const { data } = useStore();
   const toast = useToast();
+  const fileRef = useRef(null);
   const [q, setQ] = useState("");
   const [type, setType] = useState("all");
+  const [assets, setAssets] = useState([]);
+  const [enabled, setEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [confirm, setConfirm] = useState(null);
 
-  const media = useMemo(() => {
-    const all = collectMedia({
-      home: data.home, destinations: data.destinations, weekends: data.weekends,
-      nav: data.nav, content: data.content, adventureStyles: data.adventureStyles,
-    });
-    // de-dupe by url, keep first path
-    const seen = new Map();
-    for (const m of all) if (!seen.has(m.url)) seen.set(m.url, m);
-    return [...seen.values()];
-  }, [data]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const st = await media.status();
+      const on = !!st?.data?.enabled;
+      setEnabled(on);
+      if (on) {
+        const res = await media.list("?limit=500");
+        setAssets(Array.isArray(res?.data) ? res.data : []);
+      } else {
+        setAssets([]);
+      }
+    } catch (err) {
+      toast(err?.message || "Could not load media library", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-  const rows = media.filter((m) => {
-    if (type !== "all" && m.type !== type) return false;
-    if (q && !`${m.url} ${m.path}`.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
+  useEffect(() => { load(); }, [load]);
+
+  const onPick = () => fileRef.current?.click();
+
+  const onFile = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    setUploading(true);
+    try {
+      await media.uploadViaServer(f, "library");
+      await load();
+      toast("File uploaded");
+    } catch (err) {
+      toast(err?.message || "Upload failed", "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const doDelete = async (asset) => {
+    try {
+      await media.remove(asset._id);
+      setAssets((s) => s.filter((a) => a._id !== asset._id));
+      toast("File deleted");
+    } catch (err) {
+      toast(err?.message || "Delete failed", "error");
+    }
+  };
 
   const copy = (url) => {
     navigator.clipboard?.writeText(url);
     toast("URL copied");
   };
 
+  const rows = useMemo(() => assets.filter((a) => {
+    const t = isVideo(a) ? "video" : "image";
+    if (type !== "all" && t !== type) return false;
+    if (q && !`${a.name || ""} ${a.folder || ""} ${a.url || ""}`.toLowerCase().includes(q.toLowerCase())) return false;
+    return true;
+  }), [assets, type, q]);
+
   return (
     <div>
-      <PageHeader title="Media Library" subtitle={`${media.length} assets referenced across the site`} />
+      <PageHeader title="Media Library" subtitle={`${assets.length} files in your media library`}>
+        <Button variant="primary" icon="upload" onClick={onPick} disabled={!enabled || uploading}>
+          {uploading ? "Uploading…" : "Upload"}
+        </Button>
+        <input ref={fileRef} type="file" accept="image/*,video/*" hidden onChange={onFile} />
+      </PageHeader>
 
       <div className="row-between wrap gap-3" style={{ marginBottom: "var(--sp-4)" }}>
         <SearchInput value={q} onChange={setQ} placeholder="Search media…" />
@@ -63,38 +102,55 @@ export default function Media() {
         </div>
       </div>
 
-      {rows.length === 0 ? (
-        <div className="card"><EmptyState icon="image" title="No media found" message="Add image URLs to your content and they'll appear here." /></div>
+      {!enabled ? (
+        <div className="card"><EmptyState icon="image" title="Media storage not configured" message="S3 storage isn't enabled on the backend, so the media library is unavailable. Configure the S3 credentials on the server to start uploading and managing assets." /></div>
+      ) : loading ? (
+        <div className="card"><EmptyState icon="image" title="Loading media…" message="Fetching your media library from storage." /></div>
+      ) : rows.length === 0 ? (
+        <div className="card"><EmptyState icon="image" title="No media found" message={assets.length ? "No assets match your search." : "Upload an image or video to get started."} /></div>
       ) : (
         <div className="media-grid">
-          {rows.map((m) => (
-            <div key={m.url} className="media-card" onClick={() => copy(m.url)} title="Click to copy URL">
-              <div className="media-thumb">
-                {m.type === "video" ? (
-                  <div className="media-video"><Icon name="newspaper" size={22} /><span>Video</span></div>
-                ) : (
-                  <img src={m.url} alt="" loading="lazy" onError={(e) => (e.currentTarget.style.opacity = 0.2)} />
-                )}
-                <span className="media-copy"><Icon name="copy" size={14} /></span>
+          {rows.map((a) => {
+            const video = isVideo(a);
+            return (
+              <div key={a._id} className="media-card">
+                <div className="media-thumb" onClick={() => copy(a.url)} title="Click to copy URL">
+                  {video ? (
+                    <video src={a.url} muted loop playsInline preload="metadata" onMouseOver={(e) => e.currentTarget.play?.()} onMouseOut={(e) => e.currentTarget.pause?.()} />
+                  ) : (
+                    <img src={a.url} alt={a.alt || a.name || ""} loading="lazy" onError={(e) => (e.currentTarget.style.opacity = 0.2)} />
+                  )}
+                  <span className="media-copy"><Icon name="copy" size={14} /></span>
+                  <span className="media-del">
+                    <IconButton name="trash" size="sm" className="danger" title="Delete" onClick={(e) => { e.stopPropagation(); setConfirm(a); }} />
+                  </span>
+                </div>
+                <div className="media-meta">
+                  <Badge tone={video ? "info" : "neutral"}>{video ? "video" : "image"}</Badge>
+                  <span className="tiny truncate" style={{ flex: 1 }} title={a.name}>{a.name || a.folder || a.url}</span>
+                  {a.size ? <span className="tiny" style={{ color: "var(--text-3)" }}>{formatBytes(a.size)}</span> : null}
+                </div>
               </div>
-              <div className="media-meta">
-                <Badge tone={m.type === "video" ? "info" : "neutral"}>{m.type}</Badge>
-                <span className="tiny truncate" style={{ flex: 1 }}>{m.path}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+      )}
+
+      {confirm && (
+        <ConfirmDialog title="Delete file" message={`Delete "${confirm.name || confirm.url}"? This removes it from storage and cannot be undone.`}
+          onConfirm={() => doDelete(confirm)} onClose={() => setConfirm(null)} />
       )}
 
       <style>{`
         .media-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:var(--sp-4); }
-        .media-card { border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; background:var(--panel); cursor:pointer; transition:box-shadow 130ms ease, transform 80ms ease; }
+        .media-card { border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; background:var(--panel); transition:box-shadow 130ms ease; }
         .media-card:hover { box-shadow:var(--sh-2); }
-        .media-card:active { transform:translateY(1px); }
-        .media-thumb { position:relative; aspect-ratio:4/3; background:var(--panel-soft); }
-        .media-thumb img { width:100%; height:100%; object-fit:cover; }
-        .media-video { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--text-3); font-size:12px; }
+        .media-thumb { position:relative; aspect-ratio:4/3; background:var(--panel-soft); cursor:pointer; }
+        .media-thumb:active { transform:translateY(1px); }
+        .media-thumb img, .media-thumb video { width:100%; height:100%; object-fit:cover; display:block; }
         .media-copy { position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:8px; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; color:var(--ink); }
+        .media-del { position:absolute; top:8px; left:8px; }
+        .media-del .icon-btn { background:rgba(255,255,255,.92); }
         .media-meta { display:flex; align-items:center; gap:8px; padding:10px 12px; }
       `}</style>
     </div>

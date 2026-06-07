@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useSection } from "../lib/store.jsx";
-import { SEED_POLICIES } from "../lib/seed.js";
 import {
   PageHeader, Button, Drawer, Field, Input, Textarea, IconButton,
   ConfirmDialog, useToast, EmptyState,
@@ -60,7 +59,7 @@ function HeaderEditor({ policies, onSave, onClose }) {
 export default function Policies() {
   const [stored, setPolicies] = useSection("policies");
   const toast = useToast();
-  const p = { ...SEED_POLICIES, ...(stored || {}) };
+  const p = stored || {};
   const sections = p.sections || [];
 
   const [editSec, setEditSec] = useState(null);

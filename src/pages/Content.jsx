@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useSection } from "../lib/store.jsx";
-import { SEED_CONTENT } from "../lib/seed.js";
 import {
   PageHeader, Button, Badge, Drawer, Field, Input, Textarea, Repeater,
   StringList, IconButton, ConfirmDialog, useToast, EmptyState,
@@ -258,8 +257,8 @@ export default function Content() {
   const [stored, setContent] = useSection("content");
   const toast = useToast();
   const c = stored || {};
-  const intro = c.faqIntro || SEED_CONTENT.faqIntro;
-  const categories = c.faqCategories?.length ? c.faqCategories : SEED_CONTENT.faqCategories;
+  const intro = c.faqIntro || {};
+  const categories = c.faqCategories || [];
 
   const [editCat, setEditCat] = useState(null);
   const [newCat, setNewCat] = useState(false);

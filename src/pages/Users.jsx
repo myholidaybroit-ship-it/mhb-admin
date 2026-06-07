@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useStore, uid } from "../lib/store.jsx";
 import {
-  PageHeader, Button, Badge, Modal, Drawer, Field, Input, SearchInput,
+  PageHeader, Button, Badge, Modal, Drawer, Field, Input, Select, SearchInput,
   IconButton, ConfirmDialog, useToast,
 } from "../ui/kit.jsx";
 import Icon from "../ui/icons.jsx";
@@ -39,7 +39,11 @@ function UserModal({ value, onClose }) {
           <Field label="Email" required><Input type="email" value={u.email} onChange={(e) => set({ email: e.target.value })} placeholder="aisha@example.com" /></Field>
           <Field label="Phone"><Input value={u.phone || ""} onChange={(e) => set({ phone: e.target.value })} placeholder="+91 98765 43210" /></Field>
           <Field label="Joined"><Input type="date" value={u.createdAt} onChange={(e) => set({ createdAt: e.target.value })} /></Field>
+          <Field label="Role" hint="Panel access is additionally gated by the backend ADMIN_EMAILS allowlist — setting Admin alone doesn't grant login.">
+            <Select value={u.role || "Customer"} options={["Customer", "Admin"]} onChange={(e) => set({ role: e.target.value })} />
+          </Field>
         </div>
+        {!value && <p className="tiny muted">A login password is generated automatically on the server for new users.</p>}
       </div>
     </Modal>
   );

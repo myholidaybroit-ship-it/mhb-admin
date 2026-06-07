@@ -8,6 +8,7 @@
 
 import { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
 import { admin, content as contentApi, resources } from "./api.js";
+import { useToast } from "../ui/kit.jsx";
 
 // Top-level singletons (one document each) vs. collections (arrays).
 const SINGLETONS = new Set([
@@ -51,7 +52,13 @@ export function StoreProvider({ children }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const fail = (e) => console.error("[store] save failed:", e?.message || e);
+  // Surface save failures to the user instead of swallowing them — an optimistic
+  // UI update that didn't reach the backend would otherwise look saved but be lost.
+  const toast = useToast();
+  const fail = (e) => {
+    console.error("[store] save failed:", e?.message || e);
+    toast(e?.message || "Couldn't save — check your connection and try again.", "error");
+  };
 
   // Replace a whole top-level section (singleton → PUT; collection → reconcile).
   const setSection = useCallback((section, value) => {

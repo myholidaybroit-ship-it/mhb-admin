@@ -28,8 +28,8 @@ function Gate() {
   if (!ready) return <div className="login-screen"><div className="spinner" /></div>;
   if (!user) return <Login />;
   return (
-    <StoreProvider>
-      <ToastProvider>
+    <ToastProvider>
+      <StoreProvider>
         <Routes>
           <Route element={<AdminShell />}>
             <Route index element={<Dashboard />} />
@@ -52,8 +52,8 @@ function Gate() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
-      </ToastProvider>
-    </StoreProvider>
+      </StoreProvider>
+    </ToastProvider>
   );
 }
 

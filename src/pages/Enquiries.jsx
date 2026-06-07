@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../lib/store.jsx";
+import { admin } from "../lib/api.js";
 import {
   PageHeader, Badge, Drawer, Button, Field, Select, SearchInput, Tabs,
   IconButton, ConfirmDialog, useToast,
@@ -66,7 +67,19 @@ export default function Enquiries() {
     return true;
   }), [all, tab, status, q]);
 
-  const setStatusFor = (e, s) => { upsert("enquiries", { ...e, status: s }); toast("Status updated"); };
+  const setStatusFor = async (e, s) => {
+    const id = e.id || e._id;
+    // optimistic local update so the UI reflects the change immediately
+    upsert("enquiries", { ...e, status: s });
+    try {
+      await admin.setEnquiryStatus(id, s);
+      toast("Status updated");
+    } catch (err) {
+      // roll back optimistic change on failure
+      upsert("enquiries", { ...e });
+      toast("Could not update status", "error");
+    }
+  };
 
   const fromCol = { key: "name", header: "From", render: (r) => (<div><div style={{ fontWeight: 600 }}>{displayName(r)}</div><div className="tiny">{r.email}</div></div>) };
   const recvCol = { key: "createdAt", header: "Received", render: (r) => <span className="tiny">{r.createdAt}</span> };

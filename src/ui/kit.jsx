@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, createContext, useContext, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./icons.jsx";
+import { media } from "../lib/api.js";
 
 /* Read an uploaded file as a data URL (used by upload-only pickers). */
 export function fileToDataURL(file) {
@@ -475,22 +476,34 @@ export function Repeater({ value = [], onChange, renderItem, blank, title = (i) 
 /* ---------------- Image picker (upload only) ---------------- */
 export function ImagePicker({ value, onChange, label = "Image", hint }) {
   const fileRef = useRef(null);
-  const onFile = (e) => {
+  const toast = useToast();
+  const [uploading, setUploading] = useState(false);
+  const onFile = async (e) => {
     const f = e.target.files?.[0];
-    if (f) compressImage(f).then(onChange);
     e.target.value = "";
+    if (!f) return;
+    setUploading(true);
+    try {
+      const result = await media.uploadViaServer(f, "content");
+      onChange(result.url);
+    } catch (err) {
+      toast?.(err?.message || "Upload failed", "danger");
+    } finally {
+      setUploading(false);
+    }
   };
   return (
     <div className="field">
       {label && <span className="field-label">{label}</span>}
       <div className="img-picker">
-        <button type="button" className={`img-thumb upload ${value ? "" : "empty"}`} onClick={() => fileRef.current?.click()} title="Click to upload">
-          {value ? <img src={value} alt="" /> : <span className="upload-hint"><Icon name="upload" size={20} /><span className="tiny">Upload</span></span>}
+        <button type="button" className={`img-thumb upload ${value ? "" : "empty"}`} onClick={() => fileRef.current?.click()} disabled={uploading} title="Click to upload">
+          {uploading ? <span className="upload-hint"><span className="spinner" /><span className="tiny">Uploading…</span></span>
+            : value ? <img src={value} alt="" /> : <span className="upload-hint"><Icon name="upload" size={20} /><span className="tiny">Upload</span></span>}
         </button>
         <div className="grow col gap-2">
           <div className="row gap-2">
-            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()}>{value ? "Replace image" : "Upload image"}</Button>
-            {value && <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange("")}>Remove</Button>}
+            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace image" : "Upload image"}</Button>
+            {value && !uploading && <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange("")}>Remove</Button>}
           </div>
           {hint && <span className="field-hint">{hint}</span>}
         </div>
@@ -503,11 +516,22 @@ export function ImagePicker({ value, onChange, label = "Image", hint }) {
 /* ---------------- Multi image grid (upload only) ---------------- */
 export function ImageGrid({ value = [], onChange, label }) {
   const fileRef = useRef(null);
+  const toast = useToast();
+  const [uploading, setUploading] = useState(false);
   const remove = (i) => onChange(value.filter((_, idx) => idx !== i));
-  const onFiles = (e) => {
+  const onFiles = async (e) => {
     const files = [...(e.target.files || [])];
-    if (files.length) Promise.all(files.map((f) => compressImage(f))).then((urls) => onChange([...value, ...urls]));
     e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const results = await Promise.all(files.map((f) => media.uploadViaServer(f, "content")));
+      onChange([...value, ...results.map((r) => r.url)]);
+    } catch (err) {
+      toast?.(err?.message || "Upload failed", "danger");
+    } finally {
+      setUploading(false);
+    }
   };
   return (
     <div className="field">
@@ -521,8 +545,9 @@ export function ImageGrid({ value = [], onChange, label }) {
             </span>
           </div>
         ))}
-        <button type="button" className="img-grid-add" onClick={() => fileRef.current?.click()} title="Upload images">
-          <Icon name="upload" size={20} /><span className="tiny">Upload</span>
+        <button type="button" className="img-grid-add" onClick={() => fileRef.current?.click()} disabled={uploading} title="Upload images">
+          {uploading ? <><span className="spinner" /><span className="tiny">Uploading…</span></>
+            : <><Icon name="upload" size={20} /><span className="tiny">Upload</span></>}
         </button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={onFiles} />
@@ -622,23 +647,34 @@ export function TagInput({ value = [], onChange, placeholder = "Add…" }) {
 /* ---------------- PDF picker (upload only) ---------------- */
 export function PdfPicker({ value, name, onChange, label = "PDF attachment", hint }) {
   const fileRef = useRef(null);
-  const onFile = (e) => {
+  const toast = useToast();
+  const [uploading, setUploading] = useState(false);
+  const onFile = async (e) => {
     const f = e.target.files?.[0];
-    if (f) fileToDataURL(f).then((url) => onChange({ url, name: f.name }));
     e.target.value = "";
+    if (!f) return;
+    setUploading(true);
+    try {
+      const result = await media.uploadViaServer(f, "pdfs");
+      onChange({ url: result.url, name: f.name });
+    } catch (err) {
+      toast?.(err?.message || "Upload failed", "danger");
+    } finally {
+      setUploading(false);
+    }
   };
   return (
     <div className="field">
       {label && <span className="field-label">{label}</span>}
       <div className="pdf-picker">
         <span className={`pdf-chip ${value ? "has" : ""}`}>
-          <Icon name="doc" size={16} />
-          {value ? (name || "Attached PDF") : "No PDF attached"}
+          {uploading ? <span className="spinner" /> : <Icon name="doc" size={16} />}
+          {uploading ? "Uploading…" : value ? (name || "Attached PDF") : "No PDF attached"}
         </span>
         <div className="grow col gap-2">
           <div className="row gap-2">
-            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()}>{value ? "Replace PDF" : "Upload PDF"}</Button>
-            {value ? <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange({ url: "", name: "" })}>Remove</Button> : null}
+            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace PDF" : "Upload PDF"}</Button>
+            {value && !uploading ? <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange({ url: "", name: "" })}>Remove</Button> : null}
           </div>
           <input ref={fileRef} type="file" accept="application/pdf" hidden onChange={onFile} />
           {hint && <span className="field-hint">{hint}</span>}
@@ -651,28 +687,36 @@ export function PdfPicker({ value, name, onChange, label = "PDF attachment", hin
 /* ---------------- Video picker (upload only) ---------------- */
 export function VideoPicker({ value, onChange, label = "Video", hint }) {
   const fileRef = useRef(null);
-  const [warn, setWarn] = useState("");
-  const onFile = (e) => {
+  const toast = useToast();
+  const [uploading, setUploading] = useState(false);
+  const onFile = async (e) => {
     const f = e.target.files?.[0];
-    if (f) {
-      setWarn(f.size > 8 * 1024 * 1024 ? "This clip is large — keep videos small so they save in the browser." : "");
-      fileToDataURL(f).then(onChange);
-    }
     e.target.value = "";
+    if (!f) return;
+    setUploading(true);
+    try {
+      const result = await media.uploadViaServer(f, "content");
+      onChange(result.url);
+    } catch (err) {
+      toast?.(err?.message || "Upload failed", "danger");
+    } finally {
+      setUploading(false);
+    }
   };
   return (
     <div className="field">
       {label && <span className="field-label">{label}</span>}
       <div className="img-picker">
-        <button type="button" className={`img-thumb upload ${value ? "" : "empty"}`} style={{ aspectRatio: "3/4", width: 96, height: "auto" }} onClick={() => fileRef.current?.click()} title="Click to upload">
-          {value ? <video src={value} muted loop autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span className="upload-hint"><Icon name="upload" size={20} /><span className="tiny">Upload</span></span>}
+        <button type="button" className={`img-thumb upload ${value ? "" : "empty"}`} style={{ aspectRatio: "3/4", width: 96, height: "auto" }} onClick={() => fileRef.current?.click()} disabled={uploading} title="Click to upload">
+          {uploading ? <span className="upload-hint"><span className="spinner" /><span className="tiny">Uploading…</span></span>
+            : value ? <video src={value} muted loop autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span className="upload-hint"><Icon name="upload" size={20} /><span className="tiny">Upload</span></span>}
         </button>
         <div className="grow col gap-2">
           <div className="row gap-2">
-            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()}>{value ? "Replace video" : "Upload video"}</Button>
-            {value && <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange("")}>Remove</Button>}
+            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace video" : "Upload video"}</Button>
+            {value && !uploading && <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange("")}>Remove</Button>}
           </div>
-          {warn ? <span className="field-error">{warn}</span> : hint ? <span className="field-hint">{hint}</span> : null}
+          {hint && <span className="field-hint">{hint}</span>}
         </div>
         <input ref={fileRef} type="file" accept="video/*" hidden onChange={onFile} />
       </div>
