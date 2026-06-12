@@ -478,6 +478,7 @@ export function ImagePicker({ value, onChange, label = "Image", hint }) {
   const fileRef = useRef(null);
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
+  const [lib, setLib] = useState(false);
   const onFile = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
@@ -501,23 +502,26 @@ export function ImagePicker({ value, onChange, label = "Image", hint }) {
             : value ? <img src={value} alt="" /> : <span className="upload-hint"><Icon name="upload" size={20} /><span className="tiny">Upload</span></span>}
         </button>
         <div className="grow col gap-2">
-          <div className="row gap-2">
-            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace image" : "Upload image"}</Button>
+          <div className="row gap-2" style={{ flexWrap: "wrap" }}>
+            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace image" : "Upload from computer"}</Button>
+            <Button variant="ghost" size="sm" icon="image" onClick={() => setLib(true)} disabled={uploading}>Choose from library</Button>
             {value && !uploading && <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange("")}>Remove</Button>}
           </div>
           {hint && <span className="field-hint">{hint}</span>}
         </div>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
       </div>
+      {lib && <MediaLibraryModal type="image" onPick={(m) => onChange(m.url)} onClose={() => setLib(false)} />}
     </div>
   );
 }
 
-/* ---------------- Multi image grid (upload only) ---------------- */
+/* ---------------- Multi image grid (computer or library) ---------------- */
 export function ImageGrid({ value = [], onChange, label }) {
   const fileRef = useRef(null);
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
+  const [lib, setLib] = useState(false);
   const remove = (i) => onChange(value.filter((_, idx) => idx !== i));
   const onFiles = async (e) => {
     const files = [...(e.target.files || [])];
@@ -545,12 +549,16 @@ export function ImageGrid({ value = [], onChange, label }) {
             </span>
           </div>
         ))}
-        <button type="button" className="img-grid-add" onClick={() => fileRef.current?.click()} disabled={uploading} title="Upload images">
+        <button type="button" className="img-grid-add" onClick={() => fileRef.current?.click()} disabled={uploading} title="Upload from computer">
           {uploading ? <><span className="spinner" /><span className="tiny">Uploading…</span></>
             : <><Icon name="upload" size={20} /><span className="tiny">Upload</span></>}
         </button>
+        <button type="button" className="img-grid-add" onClick={() => setLib(true)} disabled={uploading} title="Choose from library">
+          <Icon name="image" size={20} /><span className="tiny">Library</span>
+        </button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={onFiles} />
+      {lib && <MediaLibraryModal type="image" multiple onPick={(items) => onChange([...value, ...items.map((m) => m.url)])} onClose={() => setLib(false)} />}
     </div>
   );
 }
@@ -649,6 +657,7 @@ export function PdfPicker({ value, name, onChange, label = "PDF attachment", hin
   const fileRef = useRef(null);
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
+  const [lib, setLib] = useState(false);
   const onFile = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
@@ -672,14 +681,16 @@ export function PdfPicker({ value, name, onChange, label = "PDF attachment", hin
           {uploading ? "Uploading…" : value ? (name || "Attached PDF") : "No PDF attached"}
         </span>
         <div className="grow col gap-2">
-          <div className="row gap-2">
-            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace PDF" : "Upload PDF"}</Button>
+          <div className="row gap-2" style={{ flexWrap: "wrap" }}>
+            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace PDF" : "Upload from computer"}</Button>
+            <Button variant="ghost" size="sm" icon="doc" onClick={() => setLib(true)} disabled={uploading}>Choose from library</Button>
             {value && !uploading ? <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange({ url: "", name: "" })}>Remove</Button> : null}
           </div>
           <input ref={fileRef} type="file" accept="application/pdf" hidden onChange={onFile} />
           {hint && <span className="field-hint">{hint}</span>}
         </div>
       </div>
+      {lib && <MediaLibraryModal type="file" onPick={(m) => onChange({ url: m.url, name: m.name || "Attached PDF" })} onClose={() => setLib(false)} />}
     </div>
   );
 }
@@ -689,6 +700,7 @@ export function VideoPicker({ value, onChange, label = "Video", hint }) {
   const fileRef = useRef(null);
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
+  const [lib, setLib] = useState(false);
   const onFile = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
@@ -712,14 +724,124 @@ export function VideoPicker({ value, onChange, label = "Video", hint }) {
             : value ? <video src={value} muted loop autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span className="upload-hint"><Icon name="upload" size={20} /><span className="tiny">Upload</span></span>}
         </button>
         <div className="grow col gap-2">
-          <div className="row gap-2">
-            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace video" : "Upload video"}</Button>
+          <div className="row gap-2" style={{ flexWrap: "wrap" }}>
+            <Button variant="ghost" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? "Uploading…" : value ? "Replace video" : "Upload from computer"}</Button>
+            <Button variant="ghost" size="sm" icon="image" onClick={() => setLib(true)} disabled={uploading}>Choose from library</Button>
             {value && !uploading && <Button variant="ghost" size="sm" icon="trash" className="danger" onClick={() => onChange("")}>Remove</Button>}
           </div>
           {hint && <span className="field-hint">{hint}</span>}
         </div>
         <input ref={fileRef} type="file" accept="video/*" hidden onChange={onFile} />
       </div>
+      {lib && <MediaLibraryModal type="video" onPick={(m) => onChange(m.url)} onClose={() => setLib(false)} />}
     </div>
+  );
+}
+
+/* ---------------- Media library browser ----------------
+   Every picker offers "Upload from computer" OR "Choose from library".
+   This modal is the library half: browse/search everything ever uploaded
+   (the S3-backed media collection), pick one (or many), or upload right here —
+   uploads always land in the library either way. */
+const LIB_ACCEPT = { image: "image/*", video: "video/*", file: "application/pdf" };
+
+export function MediaLibraryModal({ type, multiple = false, onPick, onClose }) {
+  const toast = useToast();
+  const fileRef = useRef(null);
+  const [items, setItems] = useState(null); // null = loading
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const t = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (type) params.set("type", type);
+      if (q) params.set("q", q);
+      media.list(`?${params}`)
+        .then((r) => { if (alive) setItems(r?.data || []); })
+        .catch((e) => { if (alive) { setItems([]); toast(e?.message || "Couldn't load the media library", "error"); } });
+    }, 250);
+    return () => { alive = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, type]);
+
+  const isSel = (m) => sel.some((x) => x._id === m._id);
+  const toggle = (m) => {
+    if (!multiple) return setSel(isSel(m) ? [] : [m]);
+    setSel((s) => (s.some((x) => x._id === m._id) ? s.filter((x) => x._id !== m._id) : [...s, m]));
+  };
+
+  const onFiles = async (e) => {
+    const files = [...(e.target.files || [])];
+    e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const up = await Promise.all(files.map((f) => media.uploadViaServer(f, type === "file" ? "pdfs" : "content")));
+      setItems((list) => [...up, ...(list || [])]);
+      setSel((s) => (multiple ? [...s, ...up] : [up[0]]));
+    } catch (err) {
+      toast(err?.message || "Upload failed", "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const confirm = () => {
+    if (!sel.length) return toast("Select something first", "error");
+    onPick(multiple ? sel : sel[0]);
+    onClose();
+  };
+
+  return (
+    <Modal wide title="Media library" onClose={onClose}
+      footer={
+        <>
+          <span className="tiny" style={{ marginRight: "auto", color: "var(--text-3)" }}>
+            {sel.length ? `${sel.length} selected` : `${items?.length ?? "…"} item(s) in library`}
+          </span>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" icon="check" onClick={confirm} disabled={!sel.length}>
+            Use selected{multiple && sel.length > 1 ? ` (${sel.length})` : ""}
+          </Button>
+        </>
+      }>
+      <div className="col gap-3">
+        <div className="row gap-2" style={{ alignItems: "center" }}>
+          <SearchInput value={q} onChange={setQ} placeholder="Search by file name…" />
+          <Button variant="secondary" size="sm" icon="upload" onClick={() => fileRef.current?.click()} disabled={uploading}>
+            {uploading ? "Uploading…" : "Upload from computer"}
+          </Button>
+          <input ref={fileRef} type="file" accept={LIB_ACCEPT[type] || undefined} multiple={multiple} hidden onChange={onFiles} />
+        </div>
+
+        {items === null ? (
+          <div className="medialib-empty"><span className="spinner" /></div>
+        ) : items.length === 0 ? (
+          <div className="medialib-empty">
+            <Icon name="image" size={22} />
+            <span className="tiny">{q ? "No matches — try another search." : "Library is empty. Upload your first file."}</span>
+          </div>
+        ) : (
+          <div className="medialib-grid">
+            {items.map((m) => (
+              <button type="button" key={m._id} className={`medialib-item ${isSel(m) ? "on" : ""}`} onClick={() => toggle(m)} title={m.name}>
+                {m.type === "image" ? (
+                  <img src={m.url} alt={m.alt || m.name} loading="lazy" />
+                ) : m.type === "video" ? (
+                  <video src={m.url} muted loop playsInline preload="metadata" />
+                ) : (
+                  <span className="medialib-doc"><Icon name="doc" size={22} /></span>
+                )}
+                <span className="medialib-name truncate">{m.name || m.key}</span>
+                <span className="medialib-check"><Icon name="check" size={13} /></span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

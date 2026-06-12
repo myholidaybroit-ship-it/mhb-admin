@@ -13,15 +13,18 @@ import Weekends from "./pages/Weekends.jsx";
 import AdventureStyles from "./pages/AdventureStyles.jsx";
 import Content from "./pages/Content.jsx";
 import Media from "./pages/Media.jsx";
-import Enquiries from "./pages/Enquiries.jsx";
-import Users from "./pages/Users.jsx";
 import Itineraries from "./pages/Itineraries.jsx";
 import Library from "./pages/Library.jsx";
 import Moments from "./pages/Moments.jsx";
 import Careers from "./pages/Careers.jsx";
 import Policies from "./pages/Policies.jsx";
-import Travelers from "./pages/Travelers.jsx";
-import PackageAssignments from "./pages/PackageAssignments.jsx";
+import Queries from "./pages/Queries.jsx";
+import QueryNew from "./pages/QueryNew.jsx";
+import QueryDetail from "./pages/QueryDetail.jsx";
+import Payments from "./pages/Payments.jsx";
+import FollowUps from "./pages/FollowUps.jsx";
+import SalesOverview from "./pages/SalesOverview.jsx";
+import Navigation from "./pages/Navigation.jsx";
 
 function Gate() {
   const { user, ready } = useAuth();
@@ -35,8 +38,15 @@ function Gate() {
             <Route index element={<Dashboard />} />
             <Route path="home" element={<HomePage />} />
             <Route path="contact" element={<Contact />} />
+            <Route path="navigation" element={<Navigation />} />
             <Route path="destinations" element={<Destinations />} />
             <Route path="weekends" element={<Weekends />} />
+            <Route path="sales" element={<SalesOverview />} />
+            <Route path="queries" element={<Queries />} />
+            <Route path="queries/new" element={<QueryNew />} />
+            <Route path="queries/:id" element={<QueryDetail />} />
+            <Route path="followups" element={<FollowUps />} />
+            <Route path="payments" element={<Payments />} />
             <Route path="itineraries" element={<Itineraries />} />
             <Route path="library" element={<Library />} />
             <Route path="adventure-styles" element={<AdventureStyles />} />
@@ -44,11 +54,7 @@ function Gate() {
             <Route path="content" element={<Content />} />
             <Route path="careers" element={<Careers />} />
             <Route path="policies" element={<Policies />} />
-            <Route path="travelers" element={<Travelers />} />
-            <Route path="assignments" element={<PackageAssignments />} />
             <Route path="media" element={<Media />} />
-            <Route path="enquiries" element={<Enquiries />} />
-            <Route path="users" element={<Users />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

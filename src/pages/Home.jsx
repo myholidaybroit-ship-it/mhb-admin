@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useSection } from "../lib/store.jsx";
 import {
   PageHeader, Button, Badge, Drawer, Field, Input, Textarea, Repeater,
@@ -180,27 +181,17 @@ function PackagesDrawer({ value, onSave, onClose }) {
 function StoriesDrawer({ value, onSave, onClose }) {
   const [d, set] = useDraft(value || {});
   return (
-    <Drawer wide title="Stories" subtitle="Video testimonials" onClose={onClose} footer={footerOf(onClose, () => onSave(d))}>
+    <Drawer title="Stories" subtitle="Video testimonials" onClose={onClose} footer={footerOf(onClose, () => onSave(d))}>
       <div className="col gap-4">
-        <div className="form-grid">
-          <Field label="Title"><Input value={d.title || ""} onChange={(e) => set({ title: e.target.value })} /></Field>
-          <Field label="Score"><Input value={d.score || ""} onChange={(e) => set({ score: e.target.value })} /></Field>
-          <Field label="Rating text" className="span-2"><Input value={d.ratingText || ""} onChange={(e) => set({ ratingText: e.target.value })} /></Field>
+        <Field label="Title"><Input value={d.title || ""} onChange={(e) => set({ title: e.target.value })} /></Field>
+        <div className="card" style={{ background: "var(--panel-soft)" }}>
+          <b style={{ fontSize: 13 }}>Videos & rating badge live in the Moments page</b>
+          <p className="tiny" style={{ margin: "6px 0 10px", color: "var(--text-2)" }}>
+            The video cards come from the “Video testimonials” tab, and the Google score/review count
+            from the rating badge there — so they stay in sync with the /moments page too.
+          </p>
+          <Link to="/moments"><Button variant="secondary" size="sm">Open Moments</Button></Link>
         </div>
-        <Field label="Story videos">
-          <Repeater value={d.items || []} onChange={(items) => set({ items })} blank={() => ({ id: rid("s"), name: "", dest: "", video: "" })}
-            title={(i, it) => it.name || `Story ${i + 1}`} addLabel="Add story"
-            renderItem={(it, u) => (
-              <div className="col gap-2">
-                <div className="form-grid">
-                  <Field label="Name"><Input value={it.name} onChange={(e) => u({ name: e.target.value })} /></Field>
-                  <Field label="Destination"><Input value={it.dest} onChange={(e) => u({ dest: e.target.value })} /></Field>
-                </div>
-                <VideoPicker label="Video" value={it.video} onChange={(v) => u({ video: v })} />
-                <Field label="Video URL"><Input value={it.video} onChange={(e) => u({ video: e.target.value })} placeholder="https://…" /></Field>
-              </div>
-            )} />
-        </Field>
       </div>
     </Drawer>
   );
@@ -210,32 +201,17 @@ function StoriesDrawer({ value, onSave, onClose }) {
 function MomentsDrawer({ value, onSave, onClose }) {
   const [d, set] = useDraft(value || {});
   return (
-    <Drawer wide title="Moments" subtitle="Traveler review wall" onClose={onClose} footer={footerOf(onClose, () => onSave(d))}>
+    <Drawer title="Moments" subtitle="Traveler review wall" onClose={onClose} footer={footerOf(onClose, () => onSave(d))}>
       <div className="col gap-4">
         <Field label="Title"><Input value={d.title || ""} onChange={(e) => set({ title: e.target.value })} /></Field>
-        <Field label="Moments" hint={`${(d.items || []).length} card(s)`}>
-          <Repeater value={d.items || []} onChange={(items) => set({ items })}
-            blank={() => ({ id: rid("m"), initial: "", name: "", city: "", caption: "", destination: "", duration: "", rating: "", title: "", review: "", date: "", image: "" })}
-            title={(i, it) => it.name || `Moment ${i + 1}`} addLabel="Add moment"
-            renderItem={(it, u) => (
-              <div className="col gap-2">
-                <div className="form-grid">
-                  <Field label="Initial"><Input value={it.initial} onChange={(e) => u({ initial: e.target.value })} /></Field>
-                  <Field label="Name"><Input value={it.name} onChange={(e) => u({ name: e.target.value })} /></Field>
-                  <Field label="City"><Input value={it.city} onChange={(e) => u({ city: e.target.value })} /></Field>
-                  <Field label="Destination"><Input value={it.destination} onChange={(e) => u({ destination: e.target.value })} /></Field>
-                  <Field label="Duration"><Input value={it.duration} onChange={(e) => u({ duration: e.target.value })} /></Field>
-                  <Field label="Rating"><Input value={it.rating} onChange={(e) => u({ rating: e.target.value })} /></Field>
-                  <Field label="Date"><Input value={it.date} onChange={(e) => u({ date: e.target.value })} /></Field>
-                  <Field label="Caption"><Input value={it.caption} onChange={(e) => u({ caption: e.target.value })} /></Field>
-                  <Field label="Title" className="span-2"><Input value={it.title} onChange={(e) => u({ title: e.target.value })} /></Field>
-                </div>
-                <Field label="Review"><Textarea value={it.review} onChange={(e) => u({ review: e.target.value })} rows={2} /></Field>
-                <ImagePicker label="Image" value={it.image} onChange={(v) => u({ image: v })} />
-                <Field label="Image URL"><Input value={it.image} onChange={(e) => u({ image: e.target.value })} placeholder="https://…" /></Field>
-              </div>
-            )} />
-        </Field>
+        <div className="card" style={{ background: "var(--panel-soft)" }}>
+          <b style={{ fontSize: 13 }}>Review cards live in the Moments page</b>
+          <p className="tiny" style={{ margin: "6px 0 10px", color: "var(--text-2)" }}>
+            Add or edit traveller stories in “Traveller stories” there — the home wall and the
+            /moments page both render that same list.
+          </p>
+          <Link to="/moments"><Button variant="secondary" size="sm">Open Moments</Button></Link>
+        </div>
       </div>
     </Drawer>
   );
@@ -402,8 +378,8 @@ const SECTIONS = [
   { key: "travelers", icon: "users", title: "Travelers", summary: (s) => `${(s.items || []).length} traveler(s)`, Drawer: TravelersDrawer },
   { key: "bookings", icon: "calendar", title: "Bookings", summary: (s) => `${(s.items || []).length} card(s) · ${(s.destinations || []).length} filter(s)`, Drawer: BookingsDrawer },
   { key: "packages", icon: "tag", title: "Packages", summary: (s) => `${(s.tabs || []).length} tab(s)`, Drawer: PackagesDrawer },
-  { key: "stories", icon: "star", title: "Stories", summary: (s) => `${(s.items || []).length} video(s)`, Drawer: StoriesDrawer },
-  { key: "moments", icon: "image", title: "Moments", summary: (s) => `${(s.items || []).length} review(s)`, Drawer: MomentsDrawer },
+  { key: "stories", icon: "star", title: "Stories", summary: (s) => s.title || "Video testimonials — managed in Moments", Drawer: StoriesDrawer },
+  { key: "moments", icon: "image", title: "Moments", summary: (s) => s.title || "Review wall — managed in Moments", Drawer: MomentsDrawer },
   { key: "partners", icon: "briefcase", title: "Partners", summary: (s) => `${(s.items || []).length} partner(s)`, Drawer: PartnersDrawer },
   { key: "whyUs", icon: "sparkle", title: "Why Us", summary: (s) => s.heading || "Brand story block", Drawer: WhyUsDrawer },
   { key: "featuredOn", icon: "newspaper", title: "Featured On", summary: (s) => `${(s.items || []).length} outlet(s)`, Drawer: FeaturedOnDrawer },

@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5174,
+    // Fail instead of hopping to 5175+ — those ports aren't in the backend CORS allowlist.
+    strictPort: true,
     open: true,
   },
 });

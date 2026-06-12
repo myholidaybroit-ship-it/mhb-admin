@@ -87,10 +87,7 @@ export const resources = {
   blocks: resource("blocks"),
   tripTemplates: resource("trip-templates"),
   itineraries: resource("itineraries"),
-  travelers: resource("travelers"),
-  travelerGroups: resource("traveler-groups"),
-  assignments: resource("assignments"),
-  enquiries: resource("enquiries"),
+  tripQueries: resource("trip-queries"),
 };
 
 // ── Singleton content sections ──────────────────────────────────────────────
@@ -145,15 +142,8 @@ export const media = {
 // ── Admin extras ────────────────────────────────────────────────────────────
 export const admin = {
   stats: () => get("/admin/stats"),
-  users: (query = "") => get(`/admin/users${query}`),
-  createUser: (body) => post("/admin/users", body),
-  updateUser: (id, body) => patch(`/admin/users/${id}`, body),
-  deleteUser: (id) => del(`/admin/users/${id}`),
   newsletter: () => get("/admin/newsletter"),
   removeSubscriber: (id) => del(`/admin/newsletter/${id}`),
-  bookings: (query = "") => get(`/admin/bookings${query}`),
-  updateBooking: (id, body) => patch(`/admin/bookings/${id}`, body),
-  setEnquiryStatus: (id, status) => patch(`/admin/enquiries/${id}/status`, { status }),
   exportContent: () => get("/admin/export"),
   importContent: (data) => post("/admin/import", { data }),
 };

@@ -245,7 +245,7 @@ export default function Dashboard() {
   const counts = stats?.counts;
 
   const m = useMemo(() => {
-    const dest = data.destinations || [], wk = data.weekends || [], it = data.itineraries || [], enq = data.enquiries || [];
+    const dest = data.destinations || [], wk = data.weekends || [], it = data.itineraries || [], mo = data.moments || [];
 
     const regionSeg = [
       { label: "India", value: dest.filter((d) => d.region === "India").length, color: "#ffde5f" },
@@ -255,11 +255,6 @@ export default function Dashboard() {
       { label: "Filling fast", value: wk.filter((w) => w.statusTone === "hot").length, color: "#dc2626" },
       { label: "Book now", value: wk.filter((w) => w.statusTone === "ok").length, color: "#15803d" },
       { label: "Few left", value: wk.filter((w) => w.statusTone === "low").length, color: "#c2410c" },
-    ];
-    const enqSeg = [
-      { label: "New", value: enq.filter((e) => e.status === "New").length, color: "#1d4ed8" },
-      { label: "In progress", value: enq.filter((e) => e.status === "In progress").length, color: "#c2410c" },
-      { label: "Closed", value: enq.filter((e) => e.status === "Closed").length, color: "#15803d" },
     ];
 
     // theme distribution
@@ -282,17 +277,15 @@ export default function Dashboard() {
     const totalPax = it.reduce((s, x) => s + (parseInt(x.pax) || 0), 0);
     const withPackages = dest.filter((d) => (d.packages || []).length).length;
     const wkOpen = wk.filter((w) => w.statusTone !== "hot").length;
-    const closedEnq = enq.filter((e) => e.status === "Closed").length;
     const avgRating = dest.length ? (dest.reduce((s, d) => s + (d.rating || 0), 0) / dest.length).toFixed(2) : "—";
 
     // recent lists sorted by createdAt DESC (store order is insertion order, not chronological)
     const recentIt = [...it].sort(byCreatedDesc).slice(0, 4);
-    const recentEnq = [...enq].sort(byCreatedDesc).slice(0, 4);
 
     return {
-      dest, wk, it, enq, regionSeg, wkSeg, enqSeg, themeBars, priceLadder, topReviews, maxReviews,
-      finalIt, draftIt, pipeline, totalPax, withPackages, wkOpen, closedEnq, avgRating,
-      recentIt, recentEnq,
+      dest, wk, it, mo, regionSeg, wkSeg, themeBars, priceLadder, topReviews, maxReviews,
+      finalIt, draftIt, pipeline, totalPax, withPackages, wkOpen, avgRating,
+      recentIt,
     };
   }, [data]);
 
@@ -301,13 +294,9 @@ export default function Dashboard() {
   const itCount = cnt("itineraries", m.it.length);
   const destCount = cnt("destinations", m.dest.length);
   const wkCount = cnt("weekends", m.wk.length);
-  const enqCount = cnt("bookings", m.enq.length); // total enquiries/bookings
-  const newEnq = cnt("enquiriesNew", m.enq.filter((e) => e.status === "New").length);
-  const tone = { New: "info", "In progress": "warning", Closed: "success" };
+  const moCount = cnt("moments", m.mo.length);
   const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
-  // Recent lists: prefer server-provided recentEnquiries, else client-sorted (createdAt DESC).
-  const recentEnq = stats?.recentEnquiries?.length ? stats.recentEnquiries : m.recentEnq;
   const recentIt = m.recentIt;
 
   const quick = [
@@ -343,9 +332,8 @@ export default function Dashboard() {
         <Stat icon="calendar" value={wkCount} label="Weekend trips" to="/weekends" tone="ink"
           meterPct={pct(m.wkOpen, m.wk.length)} meterColor="#15803d"
           foot={<span>{m.wkSeg[0].value} filling fast</span>} />
-        <Stat icon="inbox" value={enqCount} label="Enquiries" to="/enquiries" tone="accent"
-          meterPct={pct(m.closedEnq, m.enq.length)} meterColor="#15803d"
-          foot={newEnq ? <span><b className="up">{newEnq}</b> new to review</span> : <span>All caught up</span>} />
+        <Stat icon="star" value={moCount} label="Moments" to="/moments" tone="accent"
+          foot={<span>Videos & reviews</span>} />
       </div>
 
       {/* pipeline band */}
@@ -355,7 +343,6 @@ export default function Dashboard() {
           { ico: "sparkle", n: data.places?.length || 0, l: "Places in library" },
           { ico: "home", n: data.hotels?.length || 0, l: "Hotels saved" },
           { ico: "doc", n: data.blocks?.length || 0, l: "Content blocks" },
-          { ico: "users", n: cnt("users", data.users?.length || 0), l: "Users" },
         ].map((p, i, arr) => (
           <div className="pl-item" key={i}>
             <span className="pl-ico"><Icon name={p.ico} size={18} /></span>
@@ -377,7 +364,6 @@ export default function Dashboard() {
             <Gauge value={m.finalIt} max={m.it.length || 1} label="Itineraries finalised" color="#15803d" />
             <Gauge value={m.withPackages} max={m.dest.length || 1} label="Have packages" color="#e0a91b" />
             <Gauge value={m.wkOpen} max={m.wk.length || 1} label="Weekends bookable" color="#1d4ed8" />
-            <Gauge value={m.closedEnq} max={m.enq.length || 1} label="Enquiries closed" color="#7a7363" />
           </div>
         </div>
       </div>
@@ -400,10 +386,6 @@ export default function Dashboard() {
           <div className="row-between"><div className="card-head"><span className="card-head-ico"><Icon name="calendar" size={15} /></span><h3 className="section-title">Weekend availability</h3></div><Link to="/weekends" className="see-link">View all</Link></div>
           <div className="chart-body"><Donut segments={m.wkSeg} centerTop={m.wk.length} centerSub="trips" /><Legend segments={m.wkSeg} /></div>
         </div>
-        <div className="card chart-card">
-          <div className="row-between"><div className="card-head"><span className="card-head-ico"><Icon name="inbox" size={15} /></span><h3 className="section-title">Enquiry status</h3></div><Link to="/enquiries" className="see-link">View all</Link></div>
-          <div className="chart-body"><Donut segments={m.enqSeg} centerTop={m.enq.length} centerSub="total" /><Legend segments={m.enqSeg} /></div>
-        </div>
         <div className="card">
           <div className="row-between" style={{ marginBottom: 14 }}><div className="card-head"><span className="card-head-ico"><Icon name="star" size={15} /></span><h3 className="section-title">Most reviewed</h3></div><Link to="/destinations" className="see-link">View all</Link></div>
           <div className="review-list">
@@ -422,7 +404,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* recent itineraries + enquiries */}
+      {/* recent itineraries */}
       <div className="dash-grid">
         <div className="card">
           <div className="row-between" style={{ marginBottom: "var(--sp-4)" }}><h3 className="section-title">Recent itineraries</h3><Link to="/itineraries" className="see-link">View all</Link></div>
@@ -435,21 +417,6 @@ export default function Dashboard() {
             </Link>
           ))}
           {!recentIt.length && <p className="muted">No itineraries yet.</p>}
-        </div>
-        <div className="card">
-          <div className="row-between" style={{ marginBottom: "var(--sp-4)" }}><h3 className="section-title">Recent enquiries</h3>{newEnq > 0 && <Badge tone="accent">{newEnq} new</Badge>}</div>
-          {recentEnq.map((e, i) => {
-            const name = e.name || `${e.firstName || ""} ${e.lastName || ""}`.trim() || "—";
-            return (
-              <Link to="/enquiries" key={e.id || e._id || i} className="enq-row">
-                <span className="avatar" style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}>{name.charAt(0)}</span>
-                <div className="grow truncate"><div style={{ fontWeight: 600, fontSize: 13 }} className="truncate">{e.subject || name}</div><div className="tiny truncate">{name} · {e.createdAt}</div></div>
-                <Badge tone={tone[e.status]}>{e.status}</Badge>
-              </Link>
-            );
-          })}
-          {!recentEnq.length && <p className="muted">No enquiries yet.</p>}
-          <div className="mt-4"><Link to="/enquiries"><Button variant="ghost" size="sm">View all enquiries</Button></Link></div>
         </div>
       </div>
 
@@ -497,7 +464,7 @@ export default function Dashboard() {
 
         .grid-2-1 { display:grid; grid-template-columns: 2fr 1fr; gap: var(--sp-6); }
         @media (max-width: 980px){ .grid-2-1{ grid-template-columns: 1fr; } }
-        .chart-row { display:grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-6); }
+        .chart-row { display:grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-6); }
         @media (max-width: 980px){ .chart-row{ grid-template-columns: 1fr; } }
 
         .gauge-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
@@ -543,11 +510,10 @@ export default function Dashboard() {
           background: linear-gradient(90deg, #ffe27a, #f0bd24); box-shadow: inset 0 1px 0 rgba(255,255,255,0.55); }
         .hbar-val { font-size:12.5px; font-weight:700; color: var(--accent-ink); width:42px; text-align:right; }
 
-        .dash-grid { display:grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
-        @media (max-width: 860px){ .dash-grid{ grid-template-columns:1fr; } }
-        .lrow, .enq-row { display:flex; align-items:center; gap:11px; padding:10px 0; border-bottom:1px solid var(--line-soft); }
-        .lrow:last-of-type, .enq-row:last-of-type { border-bottom:none; }
-        .lrow:hover, .enq-row:hover { background: var(--panel-soft); }
+        .dash-grid { display:grid; grid-template-columns: 1fr; gap: var(--sp-6); }
+        .lrow { display:flex; align-items:center; gap:11px; padding:10px 0; border-bottom:1px solid var(--line-soft); }
+        .lrow:last-of-type { border-bottom:none; }
+        .lrow:hover { background: var(--panel-soft); }
         .lrow-thumb { width:46px; height:36px; border-radius:8px; object-fit:cover; background: var(--panel-soft); flex:none; }
         .lrow-title { font-weight:600; font-size:13px; }
         .lrow-price { font-weight:700; font-size:12.5px; }

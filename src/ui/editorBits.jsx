@@ -1,5 +1,5 @@
 // Shared editor building blocks used across Destinations & Weekend Trips.
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Icon from "./icons.jsx";
 import { Input, IconButton, Button } from "./kit.jsx";
 import { IconPicker, guessIcon } from "./travelIcons.jsx";
@@ -80,61 +80,6 @@ export function HighlightsEditor({ value = [], onChange, placeholder = "North Go
         </div>
       ))}
       <div><Button variant="ghost" size="sm" icon="plus" onClick={add}>Add highlight</Button></div>
-    </div>
-  );
-}
-
-// Multi-select dropdown for travellers — pick individuals or whole groups.
-export function PeoplePicker({ value = [], onChange, travelers = [], groups = [] }) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
-  const selected = travelers.filter((t) => value.includes(t.id));
-  const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
-  const addGroup = (g) => { const ids = new Set(value); (g.memberIds || []).forEach((id) => ids.add(id)); onChange([...ids]); };
-  const ql = q.toLowerCase();
-  const fPeople = travelers.filter((t) => !q || (t.name || "").toLowerCase().includes(ql));
-  const fGroups = groups.filter((g) => !q || (g.name || "").toLowerCase().includes(ql));
-  return (
-    <div className="people-picker" ref={ref}>
-      <div className="people-chips" onClick={() => setOpen(true)}>
-        {selected.length === 0 ? <span className="tiny" style={{ color: "var(--text-3)" }}>No travellers selected — click to add</span> : selected.map((t) => (
-          <span className="tag-chip" key={t.id}>{t.name} <span style={{ opacity: 0.6, fontWeight: 400 }}>· {t.group}</span>
-            <button type="button" onClick={(e) => { e.stopPropagation(); toggle(t.id); }} aria-label={`Remove ${t.name}`}><Icon name="close" size={12} /></button>
-          </span>
-        ))}
-        <button type="button" className="people-add" onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}><Icon name="plus" size={14} /> Add</button>
-      </div>
-      {open && (
-        <div className="people-pop">
-          <input className="icon-pop-search" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people or groups…" />
-          <div className="people-pop-list">
-            {fGroups.length > 0 && <div className="pop-label">Groups</div>}
-            {fGroups.map((g) => (
-              <button type="button" key={g.id} className="pop-row" onClick={() => addGroup(g)}>
-                <Icon name="users" size={15} /><span className="grow">{g.name}</span><span className="tiny">{(g.memberIds || []).length} people · add all</span>
-              </button>
-            ))}
-            <div className="pop-label">People</div>
-            {fPeople.length === 0 && <div className="tiny" style={{ padding: 8, color: "var(--text-3)" }}>No matches</div>}
-            {fPeople.map((t) => {
-              const on = value.includes(t.id);
-              return (
-                <button type="button" key={t.id} className={`pop-row ${on ? "on" : ""}`} onClick={() => toggle(t.id)}>
-                  <span className="pop-check">{on ? <Icon name="check" size={14} /> : null}</span>
-                  <span className="grow">{t.name}</span><span className="tiny">{t.group} · {t.age}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

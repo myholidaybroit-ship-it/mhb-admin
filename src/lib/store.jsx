@@ -1,6 +1,6 @@
 // CMS data store — now backed by the backend-mhb API (was localStorage).
 //
-// The whole content tree is loaded once from `/api/admin/export` (+ users), held
+// The whole content tree is loaded once from `/api/admin/export`, held
 // in React state, and every mutation is written through to the API while the
 // local copy updates optimistically. The hook surface (useStore / useSection /
 // upsert / remove / setSection / uid / slugify) is unchanged, so every admin
@@ -19,13 +19,6 @@ const SINGLETONS = new Set([
 const ID_KEY = { destinations: "slug" };
 const keyOf = (section) => ID_KEY[section] || "id";
 
-// The API stores role lowercase; the admin UI expects "Customer"/"Admin".
-const titleRole = (r) => (String(r || "").toLowerCase() === "admin" ? "Admin" : "Customer");
-
-function normalizeUsers(list = []) {
-  return list.map((u) => ({ ...u, id: u.id || u._id, role: titleRole(u.role) }));
-}
-
 const StoreCtx = createContext(null);
 
 export function StoreProvider({ children }) {
@@ -37,12 +30,9 @@ export function StoreProvider({ children }) {
     setStatus("loading");
     setError("");
     try {
-      const [{ data: tree }, { data: users }] = await Promise.all([
-        admin.exportContent(),
-        admin.users(),
-      ]);
+      const { data: tree } = await admin.exportContent();
       const { version, exportedAt, ...rest } = tree || {};
-      setData({ ...rest, users: normalizeUsers(users) });
+      setData(rest);
       setStatus("ready");
     } catch (e) {
       setError(e.message || "Couldn't load content from the server.");
@@ -90,25 +80,26 @@ export function StoreProvider({ children }) {
       return { ...d, [section]: next };
     });
 
-    if (section === "users") {
-      const exists = (data?.users || []).some((u) => (u.id || u._id) === id);
-      const body = { id, name: item.name, email: item.email, phone: item.phone, role: item.role };
-      const p = exists ? admin.updateUser(id, body) : admin.createUser(body);
-      p.then((r) => {
-        // reflect server-normalised record (createdAt, etc.)
-        if (r?.data) setData((d) => ({ ...d, users: normalizeUsers((d.users || []).map((u) => ((u.id || u._id) === id ? { ...u, ...r.data, role: titleRole(r.data.role) } : u))) }));
-      }).catch(fail);
-    } else if (resources[section]) {
-      resources[section].replace(id, item).catch(fail);
-    }
-  }, [data]);
+    if (resources[section]) resources[section].replace(id, item).catch(fail);
+  }, []);
+
+  // Partial update of one item: merge `patch` locally and persist via PATCH
+  // ($set), which — unlike `upsert`'s full PUT replace — preserves server-managed
+  // fields like createdAt.
+  const patchItem = useCallback((section, id, patch) => {
+    const k = ID_KEY[section] || "id";
+    setData((d) => ({
+      ...d,
+      [section]: (d[section] || []).map((x) => ((x[k] ?? x.id) === id ? { ...x, ...patch } : x)),
+    }));
+    if (resources[section]) resources[section].update(id, patch).catch(fail);
+  }, []);
 
   // Remove one item from a collection.
   const remove = useCallback((section, id, idKey = "id") => {
     const k = ID_KEY[section] || idKey;
     setData((d) => ({ ...d, [section]: (d[section] || []).filter((x) => (x[k] ?? x.id) !== id) }));
-    if (section === "users") admin.deleteUser(id).catch(fail);
-    else if (resources[section]) resources[section].remove(id).catch(fail);
+    if (resources[section]) resources[section].remove(id).catch(fail);
   }, []);
 
   const reseed = useCallback(() => load(), [load]);
@@ -119,8 +110,8 @@ export function StoreProvider({ children }) {
   }, [load]);
 
   const value = useMemo(
-    () => ({ data, status, error, reload: load, setData, setSection, upsert, remove, reseed, exportJSON, importJSON }),
-    [data, status, error, load, setSection, upsert, remove, reseed, exportJSON, importJSON]
+    () => ({ data, status, error, reload: load, setData, setSection, upsert, patchItem, remove, reseed, exportJSON, importJSON }),
+    [data, status, error, load, setSection, upsert, patchItem, remove, reseed, exportJSON, importJSON]
   );
 
   if (status !== "ready" || !data) {

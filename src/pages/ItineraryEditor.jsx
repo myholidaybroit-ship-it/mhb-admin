@@ -6,6 +6,15 @@ import {
 } from "../ui/kit.jsx";
 import Icon from "../ui/icons.jsx";
 import PdfPreview from "./PdfPreview.jsx";
+import { paxLabel as crmPaxLabel } from "../lib/crm.js";
+
+// "25 June, 2024" — the format the trip-facts table shows.
+const longDate = (iso) => {
+  const d = new Date(iso);
+  if (!iso || Number.isNaN(+d)) return "";
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+};
+const shortDate = (d) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
 const ITEM_TYPES = [{ value: "transfer", label: "Transfer / Note" }, { value: "activity", label: "Activity / Place" }];
 
@@ -123,7 +132,31 @@ export default function ItineraryEditor({ value, onClose }) {
               <Field label="Itinerary title" required className="span-2"><Input value={it.title} onChange={(e) => set({ title: e.target.value })} placeholder="Magnificent Nusa Penida & Ubud" /></Field>
               <Field label="Destination"><Input value={it.destination} onChange={(e) => set({ destination: e.target.value })} placeholder="Bali" /></Field>
               <Field label="Status"><Select value={it.status} options={["Draft", "Final"]} onChange={(e) => set({ status: e.target.value })} /></Field>
-              <Field label="Client name"><Input value={it.clientName} onChange={(e) => set({ clientName: e.target.value })} placeholder="Sushil" /></Field>
+              <Field label="Client name" hint="Pick a guest from your CRM queries, or type a name">
+                <div className="col gap-2">
+                  <Select value="" placeholder="Pick from queries…" onChange={(e) => {
+                    const q = (data.tripQueries || []).find((x) => x.id === e.target.value);
+                    if (!q) return;
+                    const start = q.startDate ? new Date(q.startDate) : null;
+                    const end = start && q.nights ? new Date(+start + q.nights * 86400000) : null;
+                    set({
+                      clientName: q.guest?.name || "",
+                      // fill the trip facts only where this itinerary is still blank
+                      destination: it.destination || q.destination || "",
+                      startDate: it.startDate || longDate(q.startDate),
+                      duration: it.duration || (q.nights ? `${q.nights + 1} Days` : ""),
+                      dateRangeLabel: it.dateRangeLabel || (start && end ? `${shortDate(start)} to ${shortDate(end)}` : ""),
+                      paxLabel: it.paxLabel || crmPaxLabel(q),
+                      pax: it.pax || (Number(q.adults) || 0) + (Number(q.children) || 0),
+                    });
+                  }}
+                    options={(data.tripQueries || []).map((q) => ({
+                      value: q.id,
+                      label: `${q.guest?.name || "—"} · ${q.destination || "?"}${q.startDate ? ` · ${shortDate(new Date(q.startDate))}` : ""}`,
+                    }))} />
+                  <Input value={it.clientName} onChange={(e) => set({ clientName: e.target.value })} placeholder="Sushil" />
+                </div>
+              </Field>
               <Field label="Trip ID"><Input value={it.tripId || ""} onChange={(e) => set({ tripId: e.target.value })} placeholder="56802" /></Field>
               <Field label="Start date" hint="Shown on the trip-facts table"><Input value={it.startDate || ""} onChange={(e) => set({ startDate: e.target.value })} placeholder="25 June, 2024" /></Field>
               <Field label="Duration"><Input value={it.duration || ""} onChange={(e) => set({ duration: e.target.value })} placeholder="6 Days" /></Field>
