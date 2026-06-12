@@ -88,6 +88,9 @@ export const resources = {
   tripTemplates: resource("trip-templates"),
   itineraries: resource("itineraries"),
   tripQueries: resource("trip-queries"),
+  teamMembers: resource("team-members"),
+  customPackages: resource("custom-packages"),
+  quoteTemplates: resource("quote-templates"),
 };
 
 // ── Singleton content sections ──────────────────────────────────────────────
@@ -142,6 +145,7 @@ export const media = {
 // ── Admin extras ────────────────────────────────────────────────────────────
 export const admin = {
   stats: () => get("/admin/stats"),
+  users: () => get("/admin/users"), // read-only — CRM traveller picker
   newsletter: () => get("/admin/newsletter"),
   removeSubscriber: (id) => del(`/admin/newsletter/${id}`),
   exportContent: () => get("/admin/export"),

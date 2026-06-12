@@ -300,7 +300,7 @@ export default function Dashboard() {
   const recentIt = m.recentIt;
 
   const quick = [
-    { to: "/itineraries", icon: "doc", label: "Generate itinerary PDF", desc: "Build a client trip" },
+    { to: "/itineraries", icon: "doc", label: "Generate itinerary PDF", desc: "Build a traveller trip" },
     { to: "/destinations", icon: "map", label: "Add destination", desc: "Grow the catalog" },
     { to: "/weekends", icon: "calendar", label: "Add weekend trip", desc: "Short getaways" },
     { to: "/library", icon: "sparkle", label: "Manage library", desc: "Places & hotels" },

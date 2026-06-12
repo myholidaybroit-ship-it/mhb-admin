@@ -1144,6 +1144,85 @@ select {
 }
 .img-grid-add:hover { border-color: var(--accent-ink); color: var(--accent-ink); background: var(--accent-soft); }
 
+/* ---- Video picker preview ---- */
+.vp-play {
+  position: absolute; inset: 0; margin: auto;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85); color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; pointer-events: none;
+  transition: transform 0.12s ease;
+}
+.img-thumb:hover .vp-play { transform: scale(1.12); background: #fff; }
+.vp-lightbox {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(17, 17, 17, 0.86); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 28px;
+}
+.vp-lightbox video {
+  max-width: min(420px, 92vw); max-height: 80vh;
+  border-radius: 18px; background: #000;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+}
+.vp-lightbox-close {
+  position: absolute; top: 18px; right: 18px;
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: rgba(255, 255, 255, 0.14); color: #fff; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.vp-lightbox-close:hover { background: rgba(255, 255, 255, 0.28); }
+
+/* ---- SearchSelect (searchable combobox) ---- */
+.sselect { position: relative; }
+.sselect .input { width: 100%; padding-right: 32px; }
+.sselect-caret { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); cursor: pointer; display: inline-flex; }
+.sselect-pop {
+  position: absolute; z-index: 60; top: calc(100% + 5px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+  box-shadow: var(--sh-3); max-height: 260px; overflow-y: auto; padding: 5px;
+}
+.sselect-opt {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 10px; border: none; background: none; border-radius: var(--r-sm);
+  font-size: 13px; cursor: pointer; text-align: left;
+}
+.sselect-opt:hover { background: var(--panel-soft); }
+.sselect-opt.on { font-weight: 600; }
+
+/* ---- DatePicker (calendar popover) ---- */
+.dpick { position: relative; align-self: start; }
+.dpick-btn {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  height: 41px; /* match .input height — never stretch with the grid row */
+  padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface); font-size: 13.5px; font-weight: 500; cursor: pointer;
+  transition: border-color .12s, box-shadow .12s;
+}
+.dpick-btn:hover { border-color: #d8d2bd; }
+.dpick-btn.empty { color: var(--text-3); font-weight: 400; }
+.dpick-clear { display: inline-flex; color: var(--text-3); border-radius: 50%; padding: 2px; }
+.dpick-clear:hover { color: var(--danger, #b91c1c); background: var(--panel-soft); }
+.dpick-pop {
+  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 272px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: var(--sh-3); padding: 12px;
+}
+.dpick-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13.5px; }
+.dpick-nav { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--text-2); }
+.dpick-nav:hover { background: var(--panel-soft); color: var(--ink); }
+.dpick-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dpick-wd { font-size: 10px; font-weight: 700; color: var(--text-3); text-align: center; padding: 4px 0; text-transform: uppercase; letter-spacing: 0.04em; }
+.dpick-day {
+  aspect-ratio: 1; border: none; background: none; border-radius: 9px;
+  font-size: 12.5px; font-weight: 500; cursor: pointer; color: var(--text);
+}
+.dpick-day:hover { background: var(--panel-soft); }
+.dpick-day.today { box-shadow: inset 0 0 0 1.5px var(--accent); font-weight: 700; }
+.dpick-day.sel { background: var(--ink); color: var(--accent); font-weight: 700; }
+.dpick-foot { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.dpick-link { background: none; border: none; font-size: 12px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.dpick-link:hover { color: var(--ink); }
+
 /* ---- Media library modal (choose-from-library in every picker) ---- */
 .medialib-grid {
   display: grid;

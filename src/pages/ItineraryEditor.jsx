@@ -132,7 +132,7 @@ export default function ItineraryEditor({ value, onClose }) {
               <Field label="Itinerary title" required className="span-2"><Input value={it.title} onChange={(e) => set({ title: e.target.value })} placeholder="Magnificent Nusa Penida & Ubud" /></Field>
               <Field label="Destination"><Input value={it.destination} onChange={(e) => set({ destination: e.target.value })} placeholder="Bali" /></Field>
               <Field label="Status"><Select value={it.status} options={["Draft", "Final"]} onChange={(e) => set({ status: e.target.value })} /></Field>
-              <Field label="Client name" hint="Pick a guest from your CRM queries, or type a name">
+              <Field label="Traveller name" hint="Pick a traveller from your CRM queries, or type a name">
                 <div className="col gap-2">
                   <Select value="" placeholder="Pick from queries…" onChange={(e) => {
                     const q = (data.tripQueries || []).find((x) => x.id === e.target.value);
@@ -167,7 +167,7 @@ export default function ItineraryEditor({ value, onClose }) {
               <Field label="Price unit"><Input value={it.priceUnit} onChange={(e) => set({ priceUnit: e.target.value })} placeholder="per couple" /></Field>
             </div>
             <Toggle checked={it.gstIncluded} onChange={(v) => set({ gstIncluded: v })} label="Price includes GST" />
-            <Field label="Greeting message" hint="Intro letter shown under 'Dear {client}'">
+            <Field label="Greeting message" hint="Intro letter shown under 'Dear {traveller name}'">
               <Textarea value={it.greeting || ""} onChange={(e) => set({ greeting: e.target.value })} rows={3} placeholder="Our sales team has put together this quote…" />
             </Field>
             <Field label="Price breakdown" hint="Per-person / per-child tiers shown under the total">

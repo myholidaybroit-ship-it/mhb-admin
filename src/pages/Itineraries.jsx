@@ -51,7 +51,7 @@ export default function Itineraries() {
         <div><div style={{ fontWeight: 600 }}>{r.title || "Untitled"}</div><div className="tiny">{r.destination} · {r.dateRangeLabel}</div></div>
       </div>
     )},
-    { key: "clientName", header: "Client", render: (r) => (<div><div style={{ fontWeight: 500 }}>{r.clientName || "—"}</div><div className="tiny">{r.pax} pax</div></div>) },
+    { key: "clientName", header: "Traveller", render: (r) => (<div><div style={{ fontWeight: 500 }}>{r.clientName || "—"}</div><div className="tiny">{r.pax} pax</div></div>) },
     { key: "price", header: "Price", render: (r) => r.priceLabel ? <span style={{ fontWeight: 600 }}>₹{r.priceLabel}</span> : <span className="tiny">—</span> },
     { key: "days", header: "Days", render: (r) => `${(r.days || []).length}` },
     { key: "status", header: "Status", render: (r) => <Badge tone={r.status === "Final" ? "success" : "warning"} dot>{r.status}</Badge> },
@@ -66,7 +66,7 @@ export default function Itineraries() {
 
   return (
     <div>
-      <PageHeader title="Itineraries" subtitle="Build and generate client itinerary PDFs.">
+      <PageHeader title="Itineraries" subtitle="Build and generate traveller itinerary PDFs.">
         <Button variant="primary" icon="plus" onClick={create}>New itinerary</Button>
       </PageHeader>
 

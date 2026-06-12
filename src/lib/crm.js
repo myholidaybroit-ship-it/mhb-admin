@@ -104,6 +104,14 @@ export const paxLabel = (q) => {
   return `${a} adult${a === 1 ? "" : "s"}${c ? ` · ${c} child${c === 1 ? "" : "ren"}` : ""}`;
 };
 
+// "2026-11" (from <input type=month> / website forms) → "Nov 2026".
+export const fmtTravelMonth = (ym) => {
+  if (!ym) return "";
+  const [y, m] = String(ym).split("-").map(Number);
+  if (!y || !m) return ym;
+  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+};
+
 export const fmtDate = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -123,6 +131,14 @@ export const logActivity = (q, text) => [
   ...(q.activity || []),
   { at: new Date().toISOString(), text },
 ];
+
+// Random reference id for a new query, e.g. "MHB-7K2F9Q".
+export function genRefId() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
+  let s = "";
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return `MHB-${s}`;
+}
 
 /* ---------------- quick-contact links & quote sharing ---------------- */
 
@@ -150,6 +166,61 @@ export function quoteShareText(q, quote) {
     ``,
     `Shall we lock it in? Reply here and I'll hold the dates! 🌴`,
   ];
+  return lines.join("\n");
+}
+
+// WhatsApp-ready message for a CUSTOM PACKAGE — the full personalised plan,
+// day by day, ready to paste into the traveller's chat.
+export function packageShareText(p = {}) {
+  const t = p.traveller || {};
+  const days = p.days || [];
+  const nights = num(p.nights);
+  const lines = [];
+
+  lines.push(`Hi ${t.name || "there"}! 🌴`);
+  lines.push(`Here's your *personalised ${p.destination || "trip"} plan* from MyHolidayBro ✨`);
+  lines.push("");
+  lines.push(`*${p.title || `${p.destination} Custom Package`}*`);
+  lines.push(`📅 ${fmtDate(p.startDate)} · ${nights}N/${nights + 1}D · ${paxLabel(p)}`);
+
+  if (days.length) {
+    lines.push("");
+    lines.push(`*Your day-by-day plan*`);
+    days.forEach((d, i) => {
+      lines.push("");
+      lines.push(`*Day ${i + 1}${d.title ? ` — ${d.title}` : ""}*`);
+      (d.activities || []).filter(Boolean).forEach((a) => lines.push(`• ${a}`));
+      const extras = [d.stay && `🏨 ${d.stay}`, d.meals && `🍽 ${d.meals}`].filter(Boolean);
+      if (extras.length) lines.push(extras.join("  ·  "));
+    });
+  }
+
+  if (p.transport) {
+    lines.push("");
+    lines.push(`🚗 *Transport:* ${p.transport}`);
+  }
+  if ((p.inclusions || []).filter(Boolean).length) {
+    lines.push("");
+    lines.push(`✅ *Included*`);
+    p.inclusions.filter(Boolean).forEach((x) => lines.push(`• ${x}`));
+  }
+  if ((p.exclusions || []).filter(Boolean).length) {
+    lines.push("");
+    lines.push(`❌ *Not included*`);
+    p.exclusions.filter(Boolean).forEach((x) => lines.push(`• ${x}`));
+  }
+
+  if (p.price) {
+    lines.push("");
+    lines.push(`💰 *Total: ${p.price}*${p.priceNote ? ` _(${p.priceNote})_` : ""}`);
+    if (p.advance) lines.push(`To lock the dates: ${p.advance} advance`);
+  }
+  if (p.notes) {
+    lines.push("");
+    lines.push(p.notes);
+  }
+  lines.push("");
+  lines.push(`Reply here and we'll lock it in! 🔒✈️`);
   return lines.join("\n");
 }
 

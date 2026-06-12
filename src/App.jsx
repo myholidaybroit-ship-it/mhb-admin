@@ -24,6 +24,10 @@ import QueryDetail from "./pages/QueryDetail.jsx";
 import Payments from "./pages/Payments.jsx";
 import FollowUps from "./pages/FollowUps.jsx";
 import SalesOverview from "./pages/SalesOverview.jsx";
+import Team from "./pages/Team.jsx";
+import CustomPackages from "./pages/CustomPackages.jsx";
+import CustomPackageEditor from "./pages/CustomPackageEditor.jsx";
+import Newsletter from "./pages/Newsletter.jsx";
 import Navigation from "./pages/Navigation.jsx";
 
 function Gate() {
@@ -38,6 +42,7 @@ function Gate() {
             <Route index element={<Dashboard />} />
             <Route path="home" element={<HomePage />} />
             <Route path="contact" element={<Contact />} />
+            <Route path="newsletter" element={<Newsletter />} />
             <Route path="navigation" element={<Navigation />} />
             <Route path="destinations" element={<Destinations />} />
             <Route path="weekends" element={<Weekends />} />
@@ -47,6 +52,10 @@ function Gate() {
             <Route path="queries/:id" element={<QueryDetail />} />
             <Route path="followups" element={<FollowUps />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="team" element={<Team />} />
+            <Route path="packages" element={<CustomPackages />} />
+            <Route path="packages/new" element={<CustomPackageEditor />} />
+            <Route path="packages/:id" element={<CustomPackageEditor />} />
             <Route path="itineraries" element={<Itineraries />} />
             <Route path="library" element={<Library />} />
             <Route path="adventure-styles" element={<AdventureStyles />} />

@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useStore } from "../lib/store.jsx";
-import { PageHeader, Badge, Button, useToast, EmptyState } from "../ui/kit.jsx";
+import { PageHeader, Badge, Button, IconButton, useToast, EmptyState } from "../ui/kit.jsx";
 import Icon from "../ui/icons.jsx";
 import { followUpState, fmtDateTime, effectiveStage, stageTone, logActivity } from "../lib/crm.js";
 
@@ -38,13 +38,18 @@ export default function FollowUps() {
     upsert("tripQueries", { ...next, activity: logActivity(next, `Follow-up done — ${f.note.slice(0, 60)}`) });
     toast("Marked done ✓");
   };
+  const remove = ({ q, f }) => {
+    const next = { ...q, followUps: q.followUps.filter((x) => x.id !== f.id) };
+    upsert("tripQueries", { ...next, activity: logActivity(next, "Follow-up deleted") });
+    toast("Follow-up deleted");
+  };
 
   return (
     <div>
       <PageHeader title="Follow-ups" subtitle={`${openCount} open · ${doneCount} completed — your call list for the day.`} />
 
       {openCount === 0 ? (
-        <EmptyState icon="check" title="All caught up" message="No open follow-ups. Add them from any query after a client conversation." />
+        <EmptyState icon="check" title="All caught up" message="No open follow-ups. Add them from any query after a traveller conversation." />
       ) : (
         <div className="fuh">
           {groups.filter((g) => g.rows.length).map((g) => (
@@ -73,6 +78,7 @@ export default function FollowUps() {
                           {fmtDateTime(r.f.dueAt)}
                         </Badge>
                       )}
+                      <IconButton name="trash" size="sm" className="danger" title="Delete follow-up" onClick={() => remove(r)} />
                       <Link to={`/queries/${r.q.id}`}><Button variant="ghost" size="sm" icon="chevronRight" /></Link>
                     </div>
                   );

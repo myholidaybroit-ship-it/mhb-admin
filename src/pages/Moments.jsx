@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore, useSection, uid } from "../lib/store.jsx";
 import {
   PageHeader, Tabs, Drawer, Field, Input, Textarea, Button, IconButton, Badge,
@@ -79,6 +79,28 @@ function StoryEditor({ value, onClose }) {
   );
 }
 
+/* Fullscreen video lightbox — Esc or click outside to close. */
+function VideoLightbox({ video, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [onClose]);
+  return (
+    <div className="m-lightbox" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <button type="button" className="m-lightbox-close" onClick={onClose} aria-label="Close"><Icon name="close" size={18} /></button>
+      <div className="m-lightbox-body">
+        <video src={video.video} controls autoPlay playsInline poster={video.poster || undefined} />
+        <div className="m-lightbox-cap">
+          <strong>{video.name}</strong>
+          {video.dest && <span className="m-pill">{video.dest}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Moments() {
   const { data, remove } = useStore();
   const [settings, setSettings] = useSection("settings");
@@ -88,6 +110,7 @@ export default function Moments() {
   const [editM, setEditM] = useState(null);
   const [newM, setNewM] = useState(false);
   const [confirm, setConfirm] = useState(null); // { type, item }
+  const [playing, setPlaying] = useState(null); // video being played
 
   const videos = data.testimonials || [];
   const stories = data.moments || [];
@@ -130,7 +153,10 @@ export default function Moments() {
                 <div className="m-vcard" key={v.id} onClick={() => setEditV(v)}>
                   <div className="m-vmedia">
                     {v.video ? <video src={v.video} muted loop autoPlay playsInline /> : (v.poster ? <img src={v.poster} alt="" /> : <div className="m-empty"><Icon name="image" size={24} /></div>)}
-                    <span className="m-play">▶</span>
+                    {v.video && (
+                      <button type="button" className="m-play" title="Play with sound"
+                        onClick={(e) => { e.stopPropagation(); setPlaying(v); }}>▶</button>
+                    )}
                     <div className="m-tools" onClick={(e) => e.stopPropagation()}>
                       <button type="button" className="m-del" title="Remove" onClick={() => setConfirm({ type: "video", item: v })}><Icon name="trash" size={14} /></button>
                     </div>
@@ -179,6 +205,7 @@ export default function Moments() {
         )}
       </div>
 
+      {playing && <VideoLightbox video={playing} onClose={() => setPlaying(null)} />}
       {(newV || editV) && <VideoEditor value={editV} onClose={() => { setNewV(false); setEditV(null); }} />}
       {(newM || editM) && <StoryEditor value={editM} onClose={() => { setNewM(false); setEditM(null); }} />}
       {confirm && (
@@ -202,7 +229,14 @@ export default function Moments() {
         .m-simg { position:relative; aspect-ratio:4/3; background:var(--panel-soft); }
         .m-vmedia video, .m-vmedia img, .m-simg img { width:100%; height:100%; object-fit:cover; display:block; }
         .m-empty { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--text-3); }
-        .m-play { position:absolute; inset:0; margin:auto; width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; color:var(--ink); font-size:14px; pointer-events:none; }
+        .m-play { position:absolute; inset:0; margin:auto; width:42px; height:42px; border-radius:50%; border:none; cursor:pointer; background:rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; color:var(--ink); font-size:14px; transition: transform .12s ease, background .12s ease; }
+        .m-play:hover { background:#fff; transform:scale(1.12); }
+        .m-lightbox { position:fixed; inset:0; z-index:100; background:rgba(17,17,17,.86); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:28px; }
+        .m-lightbox-close { position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,.14); color:#fff; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+        .m-lightbox-close:hover { background:rgba(255,255,255,.28); }
+        .m-lightbox-body { display:flex; flex-direction:column; gap:12px; align-items:center; max-width:min(420px, 92vw); }
+        .m-lightbox-body video { width:100%; max-height:76vh; border-radius:18px; background:#000; box-shadow:0 24px 70px rgba(0,0,0,.5); }
+        .m-lightbox-cap { display:flex; align-items:center; gap:10px; color:#fff; font-size:14px; }
         .m-tools { position:absolute; top:8px; right:8px; }
         .m-del { width:28px; height:28px; border-radius:var(--r-sm); background:rgba(255,255,255,.92); border:1px solid var(--line); color:var(--text-2); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
         .m-del:hover { color:var(--danger); border-color:var(--danger); }

@@ -312,7 +312,7 @@ export const SEED_CONTENT = {
     ]},
     { id: "insurance", title: "Insurance & Safety", items: [
       { q: "Is travel insurance included?", a: "Basic travel insurance covering medical emergencies, trip cancellation and lost baggage is included on all international packages. You can also opt for an upgraded plan with adventure-sport coverage, COVID add-on, or higher claim limits at quote stage." },
-      { q: "How do you vet hotels and partners?", a: "Every hotel on our list is either visited in person by a trip captain or vetted via a long-running partnership. Activities and adventure operators are checked annually for licensing, safety equipment and customer feedback." },
+      { q: "How do you vet hotels and partners?", a: "Every hotel on our list is either visited in person by a trip captain or vetted via a long-running partnership. Activities and adventure operators are checked annually for licensing, safety equipment and traveller feedback." },
     ]},
   ],
   faqs: [

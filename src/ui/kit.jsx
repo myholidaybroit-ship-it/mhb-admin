@@ -695,12 +695,20 @@ export function PdfPicker({ value, name, onChange, label = "PDF attachment", hin
   );
 }
 
-/* ---------------- Video picker (upload only) ---------------- */
+/* ---------------- Video picker (computer or library, with preview) ---------------- */
 export function VideoPicker({ value, onChange, label = "Video", hint }) {
   const fileRef = useRef(null);
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
   const [lib, setLib] = useState(false);
+  const [preview, setPreview] = useState(false);
+
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e) => e.key === "Escape" && setPreview(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview]);
   const onFile = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
@@ -719,9 +727,16 @@ export function VideoPicker({ value, onChange, label = "Video", hint }) {
     <div className="field">
       {label && <span className="field-label">{label}</span>}
       <div className="img-picker">
-        <button type="button" className={`img-thumb upload ${value ? "" : "empty"}`} style={{ aspectRatio: "3/4", width: 96, height: "auto" }} onClick={() => fileRef.current?.click()} disabled={uploading} title="Click to upload">
+        <button type="button" className={`img-thumb upload ${value ? "" : "empty"}`} style={{ aspectRatio: "3/4", width: 96, height: "auto", position: "relative" }}
+          onClick={() => (value ? setPreview(true) : fileRef.current?.click())} disabled={uploading}
+          title={value ? "Play video" : "Click to upload"}>
           {uploading ? <span className="upload-hint"><span className="spinner" /><span className="tiny">Uploading…</span></span>
-            : value ? <video src={value} muted loop autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span className="upload-hint"><Icon name="upload" size={20} /><span className="tiny">Upload</span></span>}
+            : value ? (
+              <>
+                <video src={value} muted loop autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <span className="vp-play">▶</span>
+              </>
+            ) : <span className="upload-hint"><Icon name="upload" size={20} /><span className="tiny">Upload</span></span>}
         </button>
         <div className="grow col gap-2">
           <div className="row gap-2" style={{ flexWrap: "wrap" }}>
@@ -734,6 +749,138 @@ export function VideoPicker({ value, onChange, label = "Video", hint }) {
         <input ref={fileRef} type="file" accept="video/*" hidden onChange={onFile} />
       </div>
       {lib && <MediaLibraryModal type="video" onPick={(m) => onChange(m.url)} onClose={() => setLib(false)} />}
+      {preview && value && createPortal(
+        <div className="vp-lightbox" onMouseDown={(e) => e.target === e.currentTarget && setPreview(false)}>
+          <button type="button" className="vp-lightbox-close" onClick={() => setPreview(false)} aria-label="Close"><Icon name="close" size={18} /></button>
+          <video src={value} controls autoPlay playsInline />
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+/* ---------------- SearchSelect (searchable combobox) ----------------
+   Type to filter, click to pick. With allowCustom the typed text itself is the
+   value, so it doubles as a free-text field with suggestions. */
+export function SearchSelect({ value = "", onChange, options = [], placeholder = "Search…", allowCustom = false, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState(null); // null = not typing, show value
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQ(null); } };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const opts = options.map((o) => (typeof o === "object" ? o : { value: o, label: o }));
+  const text = q !== null ? q : (opts.find((o) => o.value === value)?.label ?? value ?? "");
+  const ql = (q || "").toLowerCase();
+  const filtered = q ? opts.filter((o) => o.label.toLowerCase().includes(ql)) : opts;
+
+  const pick = (o) => {
+    onChange(o.value);
+    onPick?.(o);
+    setQ(null);
+    setOpen(false);
+  };
+
+  return (
+    <div className="sselect" ref={ref}>
+      <input
+        className="input"
+        value={text}
+        placeholder={placeholder}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setOpen(true);
+          if (allowCustom) onChange(e.target.value);
+        }}
+      />
+      <span className="sselect-caret" onClick={() => setOpen((o) => !o)}><Icon name="chevronDown" size={15} /></span>
+      {open && filtered.length > 0 && (
+        <div className="sselect-pop">
+          {filtered.slice(0, 60).map((o) => (
+            <button type="button" key={o.value} className={`sselect-opt ${o.value === value ? "on" : ""}`} onMouseDown={(e) => { e.preventDefault(); pick(o); }}>
+              <span className="grow truncate">{o.label}</span>
+              {o.hint && <span className="tiny" style={{ color: "var(--text-3)" }}>{o.hint}</span>}
+              {o.value === value && <Icon name="check" size={13} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- DatePicker (calendar popover) ----------------
+   Stores ISO yyyy-mm-dd. A friendly calendar instead of the native input. */
+const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const toISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+export function DatePicker({ value, onChange, placeholder = "Pick a date" }) {
+  const [open, setOpen] = useState(false);
+  const sel = value ? new Date(value) : null;
+  const valid = sel && !Number.isNaN(+sel);
+  const [view, setView] = useState(() => (valid ? new Date(sel.getFullYear(), sel.getMonth(), 1) : (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); })()));
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const today = new Date();
+  const firstDay = (view.getDay() + 6) % 7; // Monday-first
+  const daysInMonth = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+  const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  const moveMonth = (n) => setView((v) => new Date(v.getFullYear(), v.getMonth() + n, 1));
+  const isSame = (d, x) => x && d === x.getDate() && view.getMonth() === x.getMonth() && view.getFullYear() === x.getFullYear();
+
+  const label = valid
+    ? sel.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+    : null;
+
+  return (
+    <div className="dpick" ref={ref}>
+      <button type="button" className={`dpick-btn ${valid ? "" : "empty"}`} onClick={() => setOpen((o) => !o)}>
+        <Icon name="calendar" size={15} />
+        <span className="grow" style={{ textAlign: "left" }}>{label || placeholder}</span>
+        {valid && (
+          <span className="dpick-clear" onClick={(e) => { e.stopPropagation(); onChange(""); }} title="Clear"><Icon name="close" size={13} /></span>
+        )}
+      </button>
+      {open && (
+        <div className="dpick-pop">
+          <div className="dpick-head">
+            <button type="button" className="dpick-nav" onClick={() => moveMonth(-1)}><Icon name="chevronLeft" size={15} /></button>
+            <b>{MONTH_NAMES[view.getMonth()]} {view.getFullYear()}</b>
+            <button type="button" className="dpick-nav" onClick={() => moveMonth(1)}><Icon name="chevronRight" size={15} /></button>
+          </div>
+          <div className="dpick-grid">
+            {WEEKDAYS.map((w) => <span key={w} className="dpick-wd">{w}</span>)}
+            {cells.map((d, i) => d === null
+              ? <span key={`x${i}`} />
+              : (
+                <button type="button" key={d}
+                  className={`dpick-day ${isSame(d, valid ? sel : null) ? "sel" : ""} ${isSame(d, today) ? "today" : ""}`}
+                  onClick={() => { onChange(toISO(new Date(view.getFullYear(), view.getMonth(), d))); setOpen(false); }}>
+                  {d}
+                </button>
+              ))}
+          </div>
+          <div className="dpick-foot">
+            <button type="button" className="dpick-link" onClick={() => { onChange(toISO(today)); setView(new Date(today.getFullYear(), today.getMonth(), 1)); setOpen(false); }}>Today</button>
+            <button type="button" className="dpick-link" onClick={() => { onChange(""); setOpen(false); }}>Clear</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ export const NAV_GROUPS = [
     items: [
       { to: "/home", label: "Home Page", icon: "dashboard" },
       { to: "/contact", label: "Contact Page", icon: "inbox" },
+      { to: "/newsletter", label: "Newsletter", icon: "mail" },
       { to: "/navigation", label: "Header & Footer", icon: "navigation" },
     ],
   },
@@ -26,15 +27,12 @@ export const NAV_GROUPS = [
     items: [
       { to: "/sales", label: "Overview", icon: "compass" },
       { to: "/queries", label: "Queries", icon: "inbox" },
+      { to: "/packages", label: "Custom Packages", icon: "sparkle" },
+      { to: "/itineraries", label: "Itineraries", icon: "doc" },
+      { to: "/library", label: "Templates", icon: "copy" },
       { to: "/followups", label: "Follow-ups", icon: "bell" },
       { to: "/payments", label: "Payments", icon: "tag" },
-    ],
-  },
-  {
-    title: "Itineraries",
-    items: [
-      { to: "/itineraries", label: "Itineraries", icon: "doc" },
-      { to: "/library", label: "Library", icon: "sparkle" },
+      { to: "/team", label: "Team", icon: "users" },
     ],
   },
   {

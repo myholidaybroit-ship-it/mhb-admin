@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store.jsx";
-import { PageHeader, Tabs, Badge, Button, Select, useToast, EmptyState } from "../ui/kit.jsx";
+import { PageHeader, Tabs, Badge, Button, IconButton, Select, useToast, EmptyState, ConfirmDialog } from "../ui/kit.jsx";
 import DataTable from "../ui/DataTable.jsx";
 import Icon from "../ui/icons.jsx";
 import { paymentState, money, num, fmtDate, logActivity, PAY_MODES, effectiveStage, stageTone } from "../lib/crm.js";
@@ -16,6 +16,7 @@ export default function Payments() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("upcoming");
   const [modes, setModes] = useState({}); // paymentId → selected mode
+  const [confirmDel, setConfirmDel] = useState(null); // payment row pending deletion
 
   const queries = data.tripQueries || [];
 
@@ -56,9 +57,16 @@ export default function Payments() {
     toast(`${money(row.amount)} recorded as received`);
   };
 
+  const deleteInstallment = (row) => {
+    const q = row.q;
+    const next = { ...q, payments: q.payments.filter((p) => p.id !== row.id) };
+    upsert("tripQueries", { ...next, activity: logActivity(next, `Installment “${row.label}” deleted`) });
+    toast("Installment deleted");
+  };
+
   const columns = [
     {
-      key: "guest", header: "Guest / Trip", render: (r) => (
+      key: "guest", header: "Traveller / Trip", render: (r) => (
         <div>
           <div style={{ fontWeight: 600 }}>{r.q.guest?.name || "—"}</div>
           <div className="tiny">{r.q.destination} · {fmtDate(r.q.startDate)}</div>
@@ -85,11 +93,12 @@ export default function Payments() {
         <div className="row gap-2" style={{ justifyContent: "flex-end" }}>
           {!r.paidAt && (
             <>
-              <Select value={modes[r.id] || PAY_MODES[0]} onChange={(e) => setModes((m) => ({ ...m, [r.id]: e.target.value }))} options={PAY_MODES} />
+              <Select style={{ width: 132, flex: "none" }} value={modes[r.id] || PAY_MODES[0]} onChange={(e) => setModes((m) => ({ ...m, [r.id]: e.target.value }))} options={PAY_MODES} />
               <Button variant="secondary" size="sm" icon="check" onClick={() => markPaid(r)}>Received</Button>
             </>
           )}
           <Button variant="ghost" size="sm" onClick={() => navigate(`/queries/${r.q.id}`)}>Open query</Button>
+          <IconButton name="trash" size="sm" className="danger" title="Delete installment" onClick={() => setConfirmDel(r)} />
         </div>
       ),
     },
@@ -125,6 +134,12 @@ export default function Payments() {
         <DataTable columns={columns} rows={rows} rowKey={(r) => r.id}
           empty={<EmptyState icon="tag" title="No installments here" message="Payment plans appear when queries are converted using a quote." />} />
       </div>
+
+      {confirmDel && (
+        <ConfirmDialog title="Delete installment"
+          message={`Delete “${confirmDel.label}” (${money(confirmDel.amount)}) for ${confirmDel.q.guest?.name || "this traveller"}${confirmDel.paidAt ? " — it is already marked received" : ""}? This cannot be undone.`}
+          onConfirm={() => deleteInstallment(confirmDel)} onClose={() => setConfirmDel(null)} />
+      )}
 
       <style>{`
         .pp-strip { display:flex; gap:0; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-xl); padding:14px 10px; flex-wrap:wrap; }

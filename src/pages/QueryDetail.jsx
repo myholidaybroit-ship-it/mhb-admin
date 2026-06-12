@@ -12,21 +12,22 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useStore, uid } from "../lib/store.jsx";
 import {
   Field, Input, Textarea, Select, Button, IconButton, Badge, TagInput,
-  Stepper, Tabs, useToast, ConfirmDialog, EmptyState,
+  Stepper, Tabs, SearchSelect, DatePicker, useToast, ConfirmDialog, EmptyState,
 } from "../ui/kit.jsx";
 import Icon from "../ui/icons.jsx";
+import ShareActions from "../ui/ShareActions.jsx";
 import {
   MANUAL_STAGES, SOURCES, QUOTE_ITEM_KINDS, PAY_MODES, stageTone,
   effectiveStage, quoteTotals, headlineQuote, money, num, paxLabel, fmtDate,
-  fmtDateTime, followUpState, paymentState, paymentSummary, logActivity,
-  telHref, mailHref, waHref, quoteShareText,
+  fmtDateTime, fmtTravelMonth, followUpState, paymentState, paymentSummary,
+  logActivity, telHref, mailHref, waHref, quoteShareText,
 } from "../lib/crm.js";
 
 const STEP_PATH = ["New", "In Progress", "On Hold", "Converted", "On Trip", "Past Trips"];
 
 /* ---------------- inline quote form ---------------- */
 function QuoteForm({ query, quote, onSave, onCancel }) {
-  const { data } = useStore();
+  const { data, upsert } = useStore();
   const toast = useToast();
   const [qt, setQt] = useState(() => quote || {
     id: uid("qt"), title: `${query.destination} · ${query.nights || "?"}N`, itineraryId: "",
@@ -37,6 +38,30 @@ function QuoteForm({ query, quote, onSave, onCancel }) {
   const t = quoteTotals(qt);
   const setItem = (id, p) => set({ items: qt.items.map((it) => (it.id === id ? { ...it, ...p } : it)) });
 
+  // ── Templates: load a saved costing sheet / save this one for reuse ──
+  const templates = data.quoteTemplates || [];
+  const loadTemplate = (tplId) => {
+    const tpl = templates.find((x) => x.id === tplId);
+    if (!tpl) return;
+    set({
+      items: (tpl.items || []).map((it) => ({ ...it, id: uid("li") })),
+      gstPct: tpl.gstPct ?? qt.gstPct,
+    });
+    toast(`Template “${tpl.name}” loaded — adjust and save`);
+  };
+  const saveAsTemplate = () => {
+    if (!qt.items.some((it) => num(it.cost) > 0)) return toast("Nothing to save — cost a component first", "error");
+    const tpl = {
+      id: uid("qtpl"),
+      name: qt.title || `${query.destination} template`,
+      destination: query.destination || "",
+      items: qt.items.map((it) => ({ ...it, id: uid("li") })),
+      gstPct: qt.gstPct,
+    };
+    upsert("quoteTemplates", tpl);
+    toast(`Saved to Templates as “${tpl.name}”`);
+  };
+
   const save = () => {
     if (!qt.items.some((it) => num(it.cost) > 0)) return toast("Add at least one costed component", "error");
     onSave(qt);
@@ -44,7 +69,13 @@ function QuoteForm({ query, quote, onSave, onCancel }) {
 
   return (
     <div className="qf">
-      <div className="form-grid">
+      {templates.length > 0 && !quote && (
+        <Field label="Start from a template" hint="Loads the costing lines — then just adjust">
+          <SearchSelect value="" onChange={loadTemplate} placeholder="Search quote templates…"
+            options={templates.map((x) => ({ value: x.id, label: x.name, hint: x.destination }))} />
+        </Field>
+      )}
+      <div className="form-grid" style={{ marginTop: templates.length > 0 && !quote ? 12 : 0 }}>
         <Field label="Quote title"><Input value={qt.title} onChange={(e) => set({ title: e.target.value })} /></Field>
         <Field label="Link itinerary">
           <Select value={qt.itineraryId} onChange={(e) => set({ itineraryId: e.target.value })}
@@ -93,7 +124,9 @@ function QuoteForm({ query, quote, onSave, onCancel }) {
         </div>
       </div>
 
-      <div className="row gap-2 mt-4" style={{ justifyContent: "flex-end" }}>
+      <div className="row gap-2 mt-4" style={{ alignItems: "center" }}>
+        <Button variant="ghost" size="sm" icon="copy" onClick={saveAsTemplate} title="Save these costing lines to Templates for reuse">Save as template</Button>
+        <span className="grow" />
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button variant="primary" icon="check" onClick={save}>Save quote</Button>
       </div>
@@ -128,7 +161,7 @@ function ConvertPanel({ query, quote, onConvert, onCancel }) {
       <b style={{ fontSize: 13 }}>Convert with “{quote.title}” — {money(t.finalPrice)}</b>
       <label className="cv-verify">
         <input type="checkbox" checked={verified} onChange={(e) => setVerified(e.target.checked)} />
-        I've verified the guest, dates and package details.
+        I've verified the traveller, dates and package details.
       </label>
 
       <div className="row-between mt-2" style={{ marginBottom: 6 }}>
@@ -158,7 +191,7 @@ function ConvertPanel({ query, quote, onConvert, onCancel }) {
 }
 
 /* ---------------- payment row ---------------- */
-function PaymentRow({ p, onPaid }) {
+function PaymentRow({ p, onPaid, onRemove }) {
   const [mode, setMode] = useState(PAY_MODES[0]);
   const st = paymentState(p);
   return (
@@ -173,10 +206,11 @@ function PaymentRow({ p, onPaid }) {
       {st === "paid" ? <Badge tone="success" dot>Paid</Badge> : (
         <>
           {st === "overdue" && <Badge tone="danger" dot>Overdue</Badge>}
-          <Select value={mode} onChange={(e) => setMode(e.target.value)} options={PAY_MODES} />
+          <Select style={{ width: 132, flex: "none" }} value={mode} onChange={(e) => setMode(e.target.value)} options={PAY_MODES} />
           <Button variant="secondary" size="sm" icon="check" onClick={() => onPaid(mode)}>Received</Button>
         </>
       )}
+      {onRemove && <IconButton name="trash" size="sm" className="danger" title="Delete installment" onClick={onRemove} />}
     </div>
   );
 }
@@ -194,6 +228,7 @@ export default function QueryDetail() {
   const [editQuote, setEditQuote] = useState(null);
   const [convertId, setConvertId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmSub, setConfirmSub] = useState(null); // { kind: "quote"|"payment", item }
   const [lostMode, setLostMode] = useState(null);
   const [lostReason, setLostReason] = useState("");
   const [fuNote, setFuNote] = useState("");
@@ -229,12 +264,11 @@ export default function QueryDetail() {
   };
   const setQuoteStatus = (qt, status) =>
     save({ ...q, quotes: q.quotes.map((x) => (x.id === qt.id ? { ...x, status } : x)) }, `Quote “${qt.title}” marked ${status}`);
-  const shareQuote = (qt) => {
-    const text = quoteShareText(q, qt);
-    const wa = waHref(q.guest?.phone, text);
-    navigator.clipboard?.writeText(text).then(() => toast("Quote message copied — paste anywhere"));
-    if (wa) window.open(wa, "_blank");
-    if (qt.status === "draft") setQuoteStatus(qt, "shared");
+  // Sending a quote over WhatsApp/Mail marks it shared; Copy leaves it alone.
+  const onQuoteShared = (qt) => (channel) => {
+    if ((channel === "whatsapp" || channel === "mail") && qt.status === "draft") {
+      setQuoteStatus(qt, "shared");
+    }
   };
   const convert = (quote, { insts, comment }) => {
     save({
@@ -259,6 +293,20 @@ export default function QueryDetail() {
   };
   const toggleFollowUp = (f) =>
     save({ ...q, followUps: q.followUps.map((x) => (x.id === f.id ? { ...x, done: !x.done } : x)) });
+  const removeFollowUp = (f) => {
+    save({ ...q, followUps: q.followUps.filter((x) => x.id !== f.id) }, "Follow-up deleted");
+    toast("Follow-up deleted");
+  };
+  const deleteSub = () => {
+    if (!confirmSub) return;
+    if (confirmSub.kind === "quote") {
+      save({ ...q, quotes: q.quotes.filter((x) => x.id !== confirmSub.item.id) }, `Quote “${confirmSub.item.title}” deleted`);
+      toast("Quote deleted");
+    } else {
+      save({ ...q, payments: q.payments.filter((x) => x.id !== confirmSub.item.id) }, `Installment “${confirmSub.item.label}” deleted`);
+      toast("Installment deleted");
+    }
+  };
 
   const wa = waHref(q.guest?.phone, `Hi ${q.guest?.name || ""}! This is MyHolidayBro about your ${q.destination} trip ✈️`);
   const stepIdx = STEP_PATH.indexOf(stage);
@@ -269,7 +317,7 @@ export default function QueryDetail() {
 
   const facts = [
     { ico: "map", v: q.destination },
-    { ico: "calendar", v: `${fmtDate(q.startDate)} · ${q.nights || "?"}N` },
+    { ico: "calendar", v: q.startDate ? `${fmtDate(q.startDate)} · ${q.nights || "?"}N` : q.travelMonth ? `Planning ${fmtTravelMonth(q.travelMonth)}` : "Dates open" },
     { ico: "users", v: paxLabel(q) },
     best && { ico: "tag", v: `${money(quoteTotals(best).finalPrice)} quote` },
     q.status === "Converted" && paySum.due > 0 && { ico: "bell", v: `${money(paySum.due)} pending`, warn: true },
@@ -382,10 +430,13 @@ export default function QueryDetail() {
                   </div>
 
                   {!isEditing && convertId !== qt.id && (
-                    <div className="row gap-2 mt-3" style={{ flexWrap: "wrap" }}>
+                    <div className="row gap-2 mt-3" style={{ flexWrap: "wrap", alignItems: "center" }}>
                       <Button variant="ghost" size="sm" icon="edit" onClick={() => { setEditQuote(qt); setConvertId(null); }}>Edit</Button>
-                      <Button variant="ghost" size="sm" icon="external" onClick={() => shareQuote(qt)}>Share</Button>
-                      <Button variant="ghost" size="sm" icon="copy" onClick={() => saveQuote({ ...qt, id: uid("qt"), title: `${qt.title} (copy)`, status: "draft", createdAt: new Date().toISOString() })}>Duplicate</Button>
+                      <ShareActions phone={q.guest?.phone} email={q.guest?.email}
+                        subject={`Your ${q.destination} quote — MyHolidayBro ✈️`}
+                        text={quoteShareText(q, qt)} onShared={onQuoteShared(qt)} />
+                      <Button variant="ghost" size="sm" icon="doc" onClick={() => saveQuote({ ...qt, id: uid("qt"), title: `${qt.title} (copy)`, status: "draft", createdAt: new Date().toISOString() })}>Duplicate</Button>
+                      <IconButton name="trash" size="sm" className="danger" title="Delete quote" onClick={() => setConfirmSub({ kind: "quote", item: qt })} />
                       {q.status !== "Converted" && !isLost && (
                         <Button variant="primary" size="sm" icon="check" onClick={() => { setConvertId(qt.id); setEditQuote(null); }}>Convert</Button>
                       )}
@@ -416,7 +467,10 @@ export default function QueryDetail() {
                   <div><span>Received</span><b style={{ color: "#15803d" }}>{money(paySum.paid)}</b></div>
                   <div><span>Pending</span><b style={{ color: paySum.due > 0 ? "#b45309" : "inherit" }}>{money(paySum.due)}</b></div>
                 </div>
-                {(q.payments || []).map((p) => <PaymentRow key={p.id} p={p} onPaid={(mode) => markPaid(p, mode)} />)}
+                {(q.payments || []).map((p) => (
+                  <PaymentRow key={p.id} p={p} onPaid={(mode) => markPaid(p, mode)}
+                    onRemove={() => setConfirmSub({ kind: "payment", item: p })} />
+                ))}
                 <div className="row-between">
                   <Button variant="ghost" size="sm" icon="plus"
                     onClick={() => save({ ...q, payments: [...(q.payments || []), { id: uid("pay"), label: `Installment ${(q.payments || []).length + 1}`, amount: 0, dueAt: "" }] }, "Installment added")}>
@@ -434,12 +488,12 @@ export default function QueryDetail() {
         {tab === "followups" && (
           <div className="col gap-4">
             <div className="fu-add">
-              <Input value={fuNote} onChange={(e) => setFuNote(e.target.value)} placeholder="Spoke to guest — sending revised quote…" />
+              <Input value={fuNote} onChange={(e) => setFuNote(e.target.value)} placeholder="Spoke to traveller — sending revised quote…" />
               <Input type="datetime-local" value={fuDue} onChange={(e) => setFuDue(e.target.value)} title="Due date (optional)" />
               <Button variant="secondary" icon="plus" onClick={addFollowUp}>Add</Button>
             </div>
             <div className="col gap-2">
-              {sortedFu.length === 0 && <EmptyState icon="bell" title="No follow-ups yet" message="Add one after every client conversation — due ones surface in the Follow-ups hub." />}
+              {sortedFu.length === 0 && <EmptyState icon="bell" title="No follow-ups yet" message="Add one after every traveller conversation — due ones surface in the Follow-ups hub." />}
               {sortedFu.map((f) => {
                 const st = followUpState(f);
                 return (
@@ -456,6 +510,7 @@ export default function QueryDetail() {
                         {st === "overdue" ? "Overdue · " : ""}{fmtDateTime(f.dueAt)}
                       </Badge>
                     )}
+                    <IconButton name="trash" size="sm" className="danger" title="Delete follow-up" onClick={() => removeFollowUp(f)} />
                   </div>
                 );
               })}
@@ -468,20 +523,27 @@ export default function QueryDetail() {
           <div className="qd-details">
             <div className="col gap-4">
               <h3 className="section-title">Trip</h3>
-              <Field label="Destination"><Input value={q.destination || ""} onChange={(e) => patch({ destination: e.target.value })} /></Field>
+              <Field label="Destination">
+                <SearchSelect value={q.destination || ""} onChange={(v) => patch({ destination: v })} allowCustom placeholder="Search destinations…"
+                  options={[...new Set([...(data.destinations || []).map((d) => d.name), ...(data.weekends || []).map((w) => w.name)])].filter(Boolean)} />
+              </Field>
               <div className="form-grid">
-                <Field label="Start date"><Input type="date" value={q.startDate || ""} onChange={(e) => patch({ startDate: e.target.value })} /></Field>
+                <Field label="Start date"><DatePicker value={q.startDate || ""} onChange={(v) => patch({ startDate: v })} /></Field>
+                <Field label="Planned month" hint="When dates aren't fixed yet"><Input type="month" value={q.travelMonth || ""} onChange={(e) => patch({ travelMonth: e.target.value })} /></Field>
                 <Field label="Nights"><Stepper value={num(q.nights) || 1} onChange={(v) => patch({ nights: v })} min={1} max={60} /></Field>
                 <Field label="Adults"><Stepper value={num(q.adults) || 1} onChange={(v) => patch({ adults: v })} min={1} max={40} /></Field>
                 <Field label="Children"><Stepper value={num(q.children)} onChange={(v) => patch({ children: v })} min={0} max={20} /></Field>
                 <Field label="Budget"><Input value={q.budget || ""} onChange={(e) => patch({ budget: e.target.value })} placeholder="₹80,000" /></Field>
                 <Field label="Source"><Select value={q.source || "Website"} onChange={(e) => patch({ source: e.target.value })} options={SOURCES} /></Field>
                 <Field label="Reference ID"><Input value={q.refId || ""} onChange={(e) => patch({ refId: e.target.value })} /></Field>
-                <Field label="Assigned to"><Input value={q.assignedTo || ""} onChange={(e) => patch({ assignedTo: e.target.value })} /></Field>
+                <Field label="Assigned to">
+                  <SearchSelect value={q.assignedTo || ""} onChange={(v) => patch({ assignedTo: v })} allowCustom placeholder="Search team…"
+                    options={(data.teamMembers || []).filter((m) => m.active !== false).map((m) => m.name).filter(Boolean)} />
+                </Field>
               </div>
             </div>
             <div className="col gap-4">
-              <h3 className="section-title">Guest</h3>
+              <h3 className="section-title">Traveller</h3>
               <Field label="Name"><Input value={q.guest?.name || ""} onChange={(e) => patchGuest({ name: e.target.value })} /></Field>
               <div className="form-grid">
                 <Field label="Phone"><Input value={q.guest?.phone || ""} onChange={(e) => patchGuest({ phone: e.target.value })} /></Field>
@@ -489,7 +551,7 @@ export default function QueryDetail() {
               </div>
               <Field label="Email"><Input value={q.guest?.email || ""} onChange={(e) => patchGuest({ email: e.target.value })} /></Field>
               <h3 className="section-title" style={{ marginTop: 8 }}>Tags & requirements</h3>
-              <TagInput value={q.tags || []} onChange={(tags) => patch({ tags })} placeholder="hot · honeymoon · repeat-guest…" />
+              <TagInput value={q.tags || []} onChange={(tags) => patch({ tags })} placeholder="hot · honeymoon · repeat-traveller…" />
               <Textarea rows={4} value={q.comments || ""} onChange={(e) => patch({ comments: e.target.value })} placeholder="Notes from the first call…" />
             </div>
           </div>
@@ -513,6 +575,14 @@ export default function QueryDetail() {
       {confirmDelete && (
         <ConfirmDialog title="Delete query" message={`Delete the query for “${q.guest?.name}”? Quotes, follow-ups and payment records go with it.`}
           onConfirm={() => { remove("tripQueries", q.id); navigate("/queries"); }} onClose={() => setConfirmDelete(false)} />
+      )}
+      {confirmSub && (
+        <ConfirmDialog
+          title={confirmSub.kind === "quote" ? "Delete quote" : "Delete installment"}
+          message={confirmSub.kind === "quote"
+            ? `Delete the quote “${confirmSub.item.title}” (${money(quoteTotals(confirmSub.item).finalPrice)})? This cannot be undone.`
+            : `Delete the installment “${confirmSub.item.label}” (${money(confirmSub.item.amount)})${confirmSub.item.paidAt ? " — it is already marked received" : ""}? This cannot be undone.`}
+          onConfirm={deleteSub} onClose={() => setConfirmSub(null)} />
       )}
 
       <style>{`
