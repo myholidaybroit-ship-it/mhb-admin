@@ -13,7 +13,7 @@ import Weekends from "./pages/Weekends.jsx";
 import AdventureStyles from "./pages/AdventureStyles.jsx";
 import Content from "./pages/Content.jsx";
 import Media from "./pages/Media.jsx";
-import Itineraries from "./pages/Itineraries.jsx";
+import Catalog from "./pages/Catalog.jsx";
 import Library from "./pages/Library.jsx";
 import Moments from "./pages/Moments.jsx";
 import Careers from "./pages/Careers.jsx";
@@ -26,7 +26,8 @@ import FollowUps from "./pages/FollowUps.jsx";
 import SalesOverview from "./pages/SalesOverview.jsx";
 import Team from "./pages/Team.jsx";
 import CustomPackages from "./pages/CustomPackages.jsx";
-import CustomPackageEditor from "./pages/CustomPackageEditor.jsx";
+import PackageBuilder from "./pages/PackageBuilder.jsx";
+import PackageView from "./pages/PackageView.jsx";
 import Newsletter from "./pages/Newsletter.jsx";
 import Navigation from "./pages/Navigation.jsx";
 
@@ -54,9 +55,11 @@ function Gate() {
             <Route path="payments" element={<Payments />} />
             <Route path="team" element={<Team />} />
             <Route path="packages" element={<CustomPackages />} />
-            <Route path="packages/new" element={<CustomPackageEditor />} />
-            <Route path="packages/:id" element={<CustomPackageEditor />} />
-            <Route path="itineraries" element={<Itineraries />} />
+            <Route path="packages/new" element={<PackageBuilder />} />
+            <Route path="packages/:id" element={<PackageBuilder />} />
+            <Route path="packages/:id/view" element={<PackageView />} />
+            <Route path="catalog" element={<Catalog />} />
+            <Route path="itineraries" element={<Navigate to="/packages" replace />} />
             <Route path="library" element={<Library />} />
             <Route path="adventure-styles" element={<AdventureStyles />} />
             <Route path="moments" element={<Moments />} />

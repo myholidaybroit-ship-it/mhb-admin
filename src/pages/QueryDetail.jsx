@@ -309,6 +309,7 @@ export default function QueryDetail() {
   };
 
   const wa = waHref(q.guest?.phone, `Hi ${q.guest?.name || ""}! This is MyHolidayBro about your ${q.destination} trip ✈️`);
+  const linkedPackage = (data.customPackages || []).find((p) => p.queryId === q.id);
   const stepIdx = STEP_PATH.indexOf(stage);
   const isLost = ["Cancelled", "Dropped"].includes(stage);
   const best = headlineQuote(q);
@@ -343,6 +344,9 @@ export default function QueryDetail() {
             </div>
           </div>
           <div className="row gap-2" style={{ flexWrap: "wrap" }}>
+            {linkedPackage
+              ? <Link to={`/packages/${linkedPackage.id}/view`}><Button variant="primary" size="sm" icon="sparkle">Open package</Button></Link>
+              : <Link to={`/packages/new?query=${q.id}`}><Button variant="primary" size="sm" icon="sparkle">Build package</Button></Link>}
             {wa && <a href={wa} target="_blank" rel="noreferrer"><Button variant="secondary" size="sm" icon="phone">WhatsApp</Button></a>}
             {telHref(q.guest?.phone) && <a href={telHref(q.guest.phone)}><IconButton name="phone" title="Call" /></a>}
             {mailHref(q.guest?.email) && <a href={mailHref(q.guest.email)}><IconButton name="mail" title="Email" /></a>}

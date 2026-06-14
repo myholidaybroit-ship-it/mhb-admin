@@ -1,5 +1,6 @@
-// Custom packages — personalised trip plans built for individual travellers.
-// List → open the builder; send any package to the traveller's WhatsApp.
+// Packages — the unified list of built packages. Open the builder to create or
+// edit, view the itinerary + WhatsApp message, or share straight to the
+// traveller's WhatsApp. Backed by the `customPackages` collection.
 
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,12 +10,14 @@ import {
   ConfirmDialog, useToast,
 } from "../ui/kit.jsx";
 import DataTable from "../ui/DataTable.jsx";
-import Icon from "../ui/icons.jsx";
 import ShareActions from "../ui/ShareActions.jsx";
-import { packageShareText, paxLabel, fmtDate, fmtDateTime, num } from "../lib/crm.js";
+import { packageWhatsAppText, packageTotals, personLabel, fmtDate, money, num } from "../lib/crm.js";
 
-export default function CustomPackages() {
-  const { data, upsert, remove } = useStore();
+const STATUS_TONE = { draft: "warning", approved: "info", converted: "success", rejected: "danger" };
+const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
+
+export default function Packages() {
+  const { data, remove } = useStore();
   const toast = useToast();
   const navigate = useNavigate();
   const [tab, setTab] = useState("all");
@@ -22,37 +25,31 @@ export default function CustomPackages() {
   const [confirmDel, setConfirmDel] = useState(null);
 
   const packages = data.customPackages || [];
+  const statusOf = (p) => p.status || "draft";
   const counts = {
     all: packages.length,
-    draft: packages.filter((p) => p.status !== "sent").length,
-    sent: packages.filter((p) => p.status === "sent").length,
+    draft: packages.filter((p) => statusOf(p) === "draft").length,
+    approved: packages.filter((p) => statusOf(p) === "approved").length,
+    converted: packages.filter((p) => statusOf(p) === "converted").length,
   };
 
   const rows = useMemo(() => {
     const ql = search.toLowerCase();
     return packages
-      .filter((p) => tab === "all" || (tab === "sent" ? p.status === "sent" : p.status !== "sent"))
-      .filter((p) => !ql || [p.title, p.destination, p.traveller?.name, p.traveller?.phone]
+      .filter((p) => tab === "all" || statusOf(p) === tab)
+      .filter((p) => !ql || [p.title, p.destination, p.customer?.name, p.customer?.phone, p.refId]
         .some((v) => String(v || "").toLowerCase().includes(ql)))
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }, [packages, tab, search]);
 
-  // WhatsApp/Mail mark the package as sent; Copy leaves the status alone.
-  const onShared = (p) => (channel) => {
-    if (channel === "whatsapp" || channel === "mail") {
-      upsert("customPackages", { ...p, status: "sent", sentAt: new Date().toISOString() });
-      toast(`Package marked sent (${channel === "whatsapp" ? "WhatsApp" : "email"})`);
-    }
-  };
-
   const columns = [
     {
-      key: "traveller", header: "Traveller", render: (p) => (
+      key: "customer", header: "Customer", render: (p) => (
         <div className="row gap-3" style={{ alignItems: "center" }}>
-          <span className="ql-avatar">{(p.traveller?.name || "?")[0]}</span>
+          <span className="ql-avatar">{(p.customer?.name || "?")[0]}</span>
           <div>
-            <div style={{ fontWeight: 600 }}>{p.traveller?.name || "—"}</div>
-            <div className="tiny">{p.traveller?.phone || "no number"}</div>
+            <div style={{ fontWeight: 600 }}>{p.customer?.name || "—"}</div>
+            <div className="tiny">{p.customer?.phone || "no number"}</div>
           </div>
         </div>
       ),
@@ -60,24 +57,20 @@ export default function CustomPackages() {
     {
       key: "package", header: "Package", render: (p) => (
         <div>
-          <div style={{ fontWeight: 600 }}>{p.title || `${p.destination} custom plan`}</div>
-          <div className="tiny">{p.destination} · {fmtDate(p.startDate)} · {num(p.nights)}N · {paxLabel(p)}</div>
+          <div style={{ fontWeight: 600 }}>{p.title || `${p.destination} package`}</div>
+          <div className="tiny">{[p.destination, fmtDate(p.travelDate), `${num(p.nights)}N`, personLabel(p)].filter(Boolean).join(" · ")}</div>
         </div>
       ),
     },
-    { key: "days", header: "Days planned", render: (p) => <Badge tone="neutral">{(p.days || []).length} day{(p.days || []).length === 1 ? "" : "s"}</Badge> },
-    { key: "price", header: "Price", render: (p) => p.price ? <b>{p.price}</b> : <span className="tiny" style={{ color: "var(--text-3)" }}>—</span> },
+    { key: "price", header: "Price (INR)", render: (p) => { const t = packageTotals(p); return t.grandInr ? <b>{money(t.grandInr)}</b> : <span className="tiny" style={{ color: "var(--text-3)" }}>—</span>; } },
+    { key: "status", header: "Status", render: (p) => <Badge tone={STATUS_TONE[statusOf(p)] || "neutral"} dot>{cap(statusOf(p))}</Badge> },
     {
-      key: "status", header: "Status", render: (p) => p.status === "sent"
-        ? <Badge tone="success" dot>Sent · {fmtDateTime(p.sentAt)}</Badge>
-        : <Badge tone="warning" dot>Draft</Badge>,
-    },
-    {
-      key: "actions", header: "", actions: true, width: 210, render: (p) => (
+      key: "actions", header: "", actions: true, width: 240, render: (p) => (
         <div className="row gap-1" style={{ justifyContent: "flex-end", alignItems: "center" }}>
-          <ShareActions labels={false} phone={p.traveller?.phone} email={p.traveller?.email}
+          <ShareActions labels={false} phone={p.customer?.phone} email={p.customer?.email}
             subject={`${p.title || `Your ${p.destination || "trip"} plan`} — MyHolidayBro ✈️`}
-            text={packageShareText(p)} onShared={onShared(p)} />
+            text={packageWhatsAppText(p)} />
+          <IconButton name="eye" size="sm" title="View & WhatsApp" onClick={() => navigate(`/packages/${p.id}/view`)} />
           <IconButton name="edit" size="sm" title="Open builder" onClick={() => navigate(`/packages/${p.id}`)} />
           <IconButton name="trash" size="sm" className="danger" title="Delete" onClick={() => setConfirmDel(p)} />
         </div>
@@ -87,32 +80,33 @@ export default function CustomPackages() {
 
   return (
     <div>
-      <PageHeader title="Custom packages" subtitle="Personally designed plans for individual travellers — built, then sent straight to WhatsApp.">
-        <Button variant="primary" icon="plus" onClick={() => navigate("/packages/new")}>New custom package</Button>
+      <PageHeader title="Packages" subtitle="Build a fully priced package, generate the itinerary, and send it to the traveller's WhatsApp.">
+        <Button variant="primary" icon="plus" onClick={() => navigate("/packages/new")}>New package</Button>
       </PageHeader>
 
       <Tabs active={tab} onChange={setTab} tabs={[
         { value: "all", label: `All (${counts.all})` },
-        { value: "draft", label: `Drafts (${counts.draft})` },
-        { value: "sent", label: `Sent (${counts.sent})` },
+        { value: "draft", label: `Draft (${counts.draft})` },
+        { value: "approved", label: `Approved (${counts.approved})` },
+        { value: "converted", label: `Converted (${counts.converted})` },
       ]} />
 
       <div className="row gap-3 mt-4" style={{ alignItems: "center" }}>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search traveller, destination, title…" />
+        <SearchInput value={search} onChange={setSearch} placeholder="Search customer, destination, ref…" />
       </div>
 
       <div className="mt-4">
         <DataTable columns={columns} rows={rows}
-          onRowClick={(p) => navigate(`/packages/${p.id}`)}
-          empty={<EmptyState icon="sparkle" title="No custom packages yet"
-            message="Design a personal trip plan for a traveller and send it to their WhatsApp in one click."
-            action={<Button variant="secondary" icon="plus" onClick={() => navigate("/packages/new")}>New custom package</Button>} />}
+          onRowClick={(p) => navigate(`/packages/${p.id}/view`)}
+          empty={<EmptyState icon="sparkle" title="No packages yet"
+            message="Build a priced package with hotels, transport and sightseeing — then send it to WhatsApp in one click."
+            action={<Button variant="secondary" icon="plus" onClick={() => navigate("/packages/new")}>New package</Button>} />}
         />
       </div>
 
       {confirmDel && (
-        <ConfirmDialog title="Delete custom package"
-          message={`Delete “${confirmDel.title || confirmDel.destination}” for ${confirmDel.traveller?.name || "this traveller"}? This cannot be undone.`}
+        <ConfirmDialog title="Delete package"
+          message={`Delete “${confirmDel.title || confirmDel.destination}” for ${confirmDel.customer?.name || "this customer"}? This cannot be undone.`}
           onConfirm={() => { remove("customPackages", confirmDel.id); toast("Package deleted"); }}
           onClose={() => setConfirmDel(null)} />
       )}

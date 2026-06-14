@@ -27,12 +27,17 @@ export const NAV_GROUPS = [
     items: [
       { to: "/sales", label: "Overview", icon: "compass" },
       { to: "/queries", label: "Queries", icon: "inbox" },
-      { to: "/packages", label: "Custom Packages", icon: "sparkle" },
-      { to: "/itineraries", label: "Itineraries", icon: "doc" },
-      { to: "/library", label: "Templates", icon: "copy" },
+      { to: "/packages", label: "Packages", icon: "sparkle" },
       { to: "/followups", label: "Follow-ups", icon: "bell" },
       { to: "/payments", label: "Payments", icon: "tag" },
       { to: "/team", label: "Team", icon: "users" },
+    ],
+  },
+  {
+    title: "Booking Catalog",
+    items: [
+      { to: "/catalog", label: "Hotels · Transport · Sightseeing", icon: "map" },
+      { to: "/library", label: "Templates & Blocks", icon: "copy" },
     ],
   },
   {

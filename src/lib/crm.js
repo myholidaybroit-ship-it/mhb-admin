@@ -224,6 +224,169 @@ export function packageShareText(p = {}) {
   return lines.join("\n");
 }
 
+/* ================================================================
+   PACKAGE BUILDER — the K1-style calculator (Basic → Hotels →
+   Transport → Sightseeing → Remarks → Pricing → WhatsApp/Itinerary).
+   A "package" is stored in the `customPackages` collection.
+   ================================================================ */
+
+// Supplier currencies with an indicative INR conversion rate (editable per package).
+export const CURRENCIES = [
+  { code: "INR", label: "₹ Indian Rupee (INR)", symbol: "₹", rate: 1 },
+  { code: "THB", label: "฿ Thai Baht (THB)", symbol: "฿", rate: 2.6 },
+  { code: "IDR", label: "Rp Indonesian Rupiah (IDR)", symbol: "Rp", rate: 0.0052 },
+  { code: "AED", label: "د.إ UAE Dirham (AED)", symbol: "AED", rate: 23 },
+  { code: "USD", label: "$ US Dollar (USD)", symbol: "$", rate: 84 },
+  { code: "EUR", label: "€ Euro (EUR)", symbol: "€", rate: 91 },
+  { code: "SGD", label: "$ Singapore Dollar (SGD)", symbol: "S$", rate: 63 },
+  { code: "MYR", label: "RM Malaysian Ringgit (MYR)", symbol: "RM", rate: 18 },
+];
+export const currencyMeta = (code) => CURRENCIES.find((c) => c.code === code) || CURRENCIES[0];
+
+export const MEAL_PLANS = ["CP", "MAP", "AP", "EP", "Breakfast", "Half Board", "All-inclusive"];
+export const STAR_CATEGORIES = ["3 Star", "4 Star", "5 Star", "Boutique", "Resort", "Homestay", "Villa"];
+export const TRANSFER_BASIS = ["Private", "SIC"];
+export const PACKAGE_STATUSES = ["draft", "approved", "converted", "rejected"];
+
+// Format an amount in a foreign currency, e.g. "27,950.00 THB".
+export const fcMoney = (n, code = "INR") => {
+  const v = Number(n) || 0;
+  const m = currencyMeta(code);
+  if (code === "INR") return money(v);
+  return `${v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${m.code}`;
+};
+
+// Per-line auto cost (in the package currency). Each line keeps its own editable
+// `cost`; these helpers recompute the suggested cost from catalog unit prices.
+export const hotelLineCost = (h = {}) =>
+  num(h.nights) * (num(h.price) * num(h.rooms) + num(h.exAdultPrice) * num(h.exAdult) + num(h.exChildPrice) * num(h.exChild));
+export const transportLineCost = (t = {}) => num(t.price); // flat per transfer (override for SIC × persons)
+export const sightLineCost = (s = {}) => num(s.adultPrice) * num(s.adults) + num(s.childPrice) * num(s.children);
+
+// Total persons on a package (adults + children).
+export const packagePax = (p = {}) => num(p.adults) + num(p.children);
+
+// Full costing for a package: supplier total → INR via rate, + per-person
+// service charge, optional markup % and GST. givenInr overrides the grand total.
+export function packageTotals(p = {}) {
+  const pricing = p.pricing || {};
+  const rate = pricing.rate == null || pricing.rate === "" ? 1 : num(pricing.rate);
+  const hotels = (p.hotels || []).reduce((s, h) => s + num(h.cost), 0);
+  const transport = (p.transport || []).reduce((s, t) => s + num(t.cost), 0);
+  const sightseeing = (p.sightseeing || []).reduce((s, x) => s + num(x.cost), 0);
+  const totalForeign = hotels + transport + sightseeing;
+
+  const markup = totalForeign * (num(pricing.markupPct) / 100);
+  const foreignWithMarkup = totalForeign + markup;
+  const inrBase = foreignWithMarkup * rate;
+
+  const pax = packagePax(p) || 1;
+  const serviceTotal = num(pricing.serviceChargePerPerson) * pax;
+
+  const gst = pricing.includeGst ? (inrBase + serviceTotal) * (num(pricing.gstPct) / 100) : 0;
+  const computed = inrBase + serviceTotal + gst;
+
+  const given = pricing.givenInr === "" || pricing.givenInr == null ? null : num(pricing.givenInr);
+  const grandInr = given ?? Math.round(computed);
+  const perPersonInr = Math.round(grandInr / pax);
+
+  return {
+    byKind: { hotels, transport, sightseeing },
+    totalForeign, markup, foreignWithMarkup, inrBase, serviceTotal, gst,
+    grandInr, perPersonInr, pax,
+  };
+}
+
+// "5 Adult" / "5 Adult, 1 Child" — the K1 person label.
+export const personLabel = (p = {}) => {
+  const a = num(p.adults), c = num(p.children);
+  return `${a} Adult${a === 1 ? "" : "s"}${c ? `, ${c} Child${c === 1 ? "" : "ren"}` : ""}`;
+};
+
+// 1 → "1st", 2 → "2nd", 11 → "11th" …
+export const ordinal = (k) => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = k % 100;
+  return `${k}${s[(v - 20) % 10] || s[v] || s[0]}`;
+};
+
+// Group hotel lines into accommodation rows for the itinerary view, computing a
+// running night label ("1st", "2nd"…). Returns the rows ready for the table.
+export function packageAccommodation(p = {}) {
+  let night = 0;
+  return (p.hotels || []).map((h) => {
+    const n = Math.max(1, num(h.nights));
+    const from = night + 1;
+    const to = night + n;
+    night = to;
+    const label = from === to ? `${ordinal(from)} Night` : `${ordinal(from)}–${ordinal(to)} Nights`;
+    return {
+      id: h.id, nightLabel: label, nights: n,
+      hotel: h.name, category: h.category, roomType: h.roomType,
+      city: h.city, rooms: num(h.rooms), meal: h.mealPlan, checkin: h.checkin,
+      pax: personLabel(p),
+    };
+  });
+}
+
+// WhatsApp-ready package message in the K1 format — the agent's one-click share.
+export function packageWhatsAppText(p = {}) {
+  const c = p.customer || {};
+  const t = packageTotals(p);
+  const L = [];
+
+  L.push(`*Your ${p.destination || "Holiday"} Package*`);
+  L.push("");
+  if (p.refId) { L.push(`Ref. No.: ${p.refId}`); L.push(""); }
+  L.push(`Dear ${c.name || "Guest"}, as per our discussion, please find the package details below.`);
+  L.push("");
+  L.push(`*Travel Date: ${fmtDate(p.travelDate)}*`);
+  L.push(`Total Person (${personLabel(p)})`);
+
+  const hotels = (p.hotels || []).filter((h) => h.name);
+  if (hotels.length) {
+    L.push("");
+    hotels.forEach((h) => {
+      const cat = h.category ? ` ${h.category}` : "";
+      const room = h.roomType ? ` – ${h.roomType}` : "";
+      const rooms = num(h.rooms) ? ` – ${num(h.rooms)} room${num(h.rooms) === 1 ? "" : "s"}` : "";
+      L.push(`${num(h.nights)} Nights ${h.city || ""} (${h.name}${cat}${room}${rooms})`.replace(/\s+/g, " ").trim());
+    });
+  }
+
+  const sights = (p.sightseeing || []).filter((s) => s.name);
+  L.push("");
+  L.push(`*Includes*`);
+  if (hotels.some((h) => /breakfast|cp|map|ap/i.test(h.mealPlan || ""))) L.push(`✨Breakfast`);
+  sights.forEach((s) => {
+    const basis = s.basis ? ` ${s.basis}` : "";
+    L.push(`✨${s.name}${basis} (${personLabel(p)})`);
+  });
+
+  const transfers = (p.transport || []).filter((x) => x.name);
+  if (transfers.length) {
+    L.push("");
+    L.push(`*Transfer*`);
+    transfers.forEach((x) => L.push(`✨${x.name}`));
+  }
+
+  if ((p.inclusions || []).filter(Boolean).length) {
+    (p.inclusions || []).filter(Boolean).forEach((x) => L.push(`✨${x}`));
+  }
+
+  L.push("");
+  L.push(`*All transfers on private basis and sightseeing on SIC basis.*`);
+
+  if (p.remarks) { L.push(""); L.push(p.remarks); }
+
+  L.push("");
+  const gstWord = p.pricing?.includeGst ? "Including" : "Excluding";
+  L.push(`*Total Package cost ${money(t.grandInr).replace("₹", "")}/- INR ${gstWord} GST*`);
+  L.push("");
+  L.push(`😍 Tentative Package cost ${money(t.perPersonInr).replace("₹", "")}/- INR per person 😍`);
+  return L.join("\n");
+}
+
 /* ---------------- analytics (Sales Overview) ---------------- */
 
 export const monthKey = (iso) => (iso || "").slice(0, 7);
