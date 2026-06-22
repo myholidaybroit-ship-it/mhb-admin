@@ -43,6 +43,7 @@ export const NAV_GROUPS = [
   {
     title: "Content",
     items: [
+      { to: "/blogs", label: "Blog", icon: "newspaper" },
       { to: "/content", label: "FAQs & Trip Content", icon: "doc" },
       { to: "/policies", label: "Policies", icon: "newspaper" },
       { to: "/careers", label: "Careers", icon: "briefcase" },

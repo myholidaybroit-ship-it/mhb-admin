@@ -25,6 +25,20 @@ const COUNTRIES = [
 
 const regionForCountry = (c) => (c === "India" ? "India" : "International");
 const priceNum = (s) => parseInt(String(s || "").replace(/[^0-9]/g, ""), 10) || 0;
+
+// Give every package a stable, unique slug (for its own SEO page). Mirrors the
+// backend's ensurePackageSlugs so the admin store matches what the API stores.
+const derivePackageSlugs = (pkgs = []) => {
+  const seen = new Set();
+  return pkgs.map((p, i) => {
+    const base = slugify(p.slug || p.name || "") || `package-${i + 1}`;
+    let slug = base;
+    let k = 2;
+    while (seen.has(slug)) slug = `${base}-${k++}`;
+    seen.add(slug);
+    return { ...p, slug };
+  });
+};
 const lowestPackagePrice = (pkgs) => {
   const nums = (pkgs || []).map((p) => priceNum(p.price)).filter(Boolean);
   return nums.length ? "₹" + Math.min(...nums).toLocaleString("en-IN") : "";
@@ -150,9 +164,19 @@ function normalizeDestination(d) {
   n.highlights = (n.highlights || []).map((h) =>
     typeof h === "string" ? { text: h, icon: guessIcon(h) } : { text: h.text || "", icon: h.icon || "" }
   );
+  const pkgSlugSeen = new Set();
   n.packages = (n.packages || []).map((p, pi) => {
-    const base = { pdf: { url: "", name: "" }, image: "", ...p };
+    const base = { pdf: { url: "", name: "" }, image: "", slug: "", seoTitle: "", seoDescription: "", ...p };
     base.cities = p.cities || (p.route ? p.route.split("·").map((s) => s.trim()).filter(Boolean) : []);
+    // Each package gets its own SEO detail page, so it needs a stable, unique
+    // slug within the destination. Honour an admin-typed slug, else derive from
+    // the name, and de-duplicate collisions with a numeric suffix.
+    const baseSlug = slugify(p.slug || p.name || "") || `package-${pi + 1}`;
+    let slug = baseSlug;
+    let k = 2;
+    while (pkgSlugSeen.has(slug)) slug = `${baseSlug}-${k++}`;
+    pkgSlugSeen.add(slug);
+    base.slug = slug;
     // Itinerary is per-package. Seed the first package from any legacy
     // destination-level itinerary so existing data isn't lost.
     const days = p.itinerary?.length ? p.itinerary : (pi === 0 ? n.itinerary || [] : []);
@@ -262,6 +286,7 @@ function DestinationEditor({ value, onClose }) {
       fromPrice: lowestPackagePrice(d.packages) || d.fromPrice,
       style: (d.themes || [])[0] || d.style || "",
       bestTime: d.bestMonths?.length ? monthsLabel(d.bestMonths) : d.bestTime,
+      packages: derivePackageSlugs(d.packages),
       ...groupForMode(groupMode(idealArr), d),
     };
     upsert("destinations", { ...d, ...derived }, "slug");
@@ -421,10 +446,13 @@ function DestinationEditor({ value, onClose }) {
           <Repeater
             value={d.packages}
             onChange={(v) => set({ packages: v })}
-            blank={{ name: "", cities: [], days: 4, nights: 3, price: "", original: "", pdf: { url: "", name: "" }, image: "" }}
+            blank={{ name: "", cities: [], days: 4, nights: 3, price: "", original: "", pdf: { url: "", name: "" }, image: "", slug: "", seoTitle: "", seoDescription: "" }}
             title={(i, it) => it.name || `Package ${i + 1}`}
             addLabel="Add package"
-            renderItem={(p, update) => (
+            renderItem={(p, update) => {
+              const destSlug = d.slug || slugify(d.name) || "destination";
+              const pkgSlug = slugify(p.slug || p.name || "");
+              return (
               <div className="col gap-4">
                 <div className="form-grid">
                   <Field label="Package name" className="span-2"><Input value={p.name} onChange={(e) => update({ name: e.target.value })} placeholder="Goa Super Saver" /></Field>
@@ -439,8 +467,31 @@ function DestinationEditor({ value, onClose }) {
                 <ImagePicker label="Package image" value={p.image} onChange={(v) => update({ image: v })} hint="Cover photo for this package card" />
                 <PdfPicker value={p.pdf?.url} name={p.pdf?.name} onChange={(pdf) => update({ pdf })}
                   label="Attach package PDF" hint="Brochure / detailed itinerary offered as a download" />
+
+                {/* ---- SEO: each package has its own public detail page ---- */}
+                <div className="card-soft col gap-3" style={{ alignItems: "stretch" }}>
+                  <div className="field-label">SEO — package detail page</div>
+                  <Field label="URL slug" hint="Auto-derived from the name if left blank. Lowercase, words separated by hyphens.">
+                    <Input
+                      value={p.slug || ""}
+                      onChange={(e) => update({ slug: e.target.value })}
+                      onBlur={(e) => update({ slug: slugify(e.target.value) })}
+                      placeholder={slugify(p.name) || "package-slug"}
+                    />
+                  </Field>
+                  <div className="tiny muted" style={{ wordBreak: "break-all" }}>
+                    Public URL: <strong>/destinations/{destSlug}/{pkgSlug || "…"}</strong>
+                  </div>
+                  <Field label="SEO title" hint="Browser tab + search result title. Blank = auto from name & duration.">
+                    <Input value={p.seoTitle || ""} onChange={(e) => update({ seoTitle: e.target.value })} placeholder={`${p.name || "Package"} — ${p.days}D/${p.nights}N ${d.name} Package`} />
+                  </Field>
+                  <Field label="Meta description" hint="Search snippet (~150 chars). Blank = auto-generated.">
+                    <Textarea value={p.seoDescription || ""} onChange={(e) => update({ seoDescription: e.target.value })} rows={2} placeholder={`Book the ${p.name || "package"} in ${d.name} from ${p.price || "₹—"}. ${p.days} days / ${p.nights} nights.`} />
+                  </Field>
+                </div>
               </div>
-            )}
+              );
+            }}
           />
         )}
 

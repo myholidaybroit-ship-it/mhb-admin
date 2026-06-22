@@ -86,6 +86,7 @@ export const resources = {
   hotels: resource("hotels"),
   transports: resource("transports"),
   blocks: resource("blocks"),
+  blogs: resource("blogs"),
   tripTemplates: resource("trip-templates"),
   itineraries: resource("itineraries"),
   tripQueries: resource("trip-queries"),

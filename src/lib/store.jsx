@@ -16,7 +16,7 @@ const SINGLETONS = new Set([
 ]);
 
 // Collections whose natural key isn't "id".
-const ID_KEY = { destinations: "slug" };
+const ID_KEY = { destinations: "slug", blogs: "slug" };
 const keyOf = (section) => ID_KEY[section] || "id";
 
 const StoreCtx = createContext(null);

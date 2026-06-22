@@ -16,6 +16,7 @@ import Media from "./pages/Media.jsx";
 import Catalog from "./pages/Catalog.jsx";
 import Library from "./pages/Library.jsx";
 import Moments from "./pages/Moments.jsx";
+import Blogs from "./pages/Blogs.jsx";
 import Careers from "./pages/Careers.jsx";
 import Policies from "./pages/Policies.jsx";
 import Queries from "./pages/Queries.jsx";
@@ -63,6 +64,7 @@ function Gate() {
             <Route path="library" element={<Library />} />
             <Route path="adventure-styles" element={<AdventureStyles />} />
             <Route path="moments" element={<Moments />} />
+            <Route path="blogs" element={<Blogs />} />
             <Route path="content" element={<Content />} />
             <Route path="careers" element={<Careers />} />
             <Route path="policies" element={<Policies />} />
