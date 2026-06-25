@@ -598,6 +598,22 @@ function DestinationEditor({ value, onClose }) {
                 These show on the <strong>{pkg.name || `Package ${pd + 1}`}</strong> page. Leave any blank to fall back to the destination-level value.
               </p>
 
+              <SectionCard title="About this package" hint="Intro paragraphs shown under “About the {package}” on the package page">
+                <div className="string-list">
+                  {(pkg.overview || []).map((p, i) => (
+                    <div className="string-row" key={i} style={{ alignItems: "flex-start" }}>
+                      <Textarea value={p} onChange={(e) => setPkg("overview", (pkg.overview || []).map((x, idx) => (idx === i ? e.target.value : x)))} />
+                      <IconButton name="trash" size="sm" className="danger" title="Remove" onClick={() => setPkg("overview", (pkg.overview || []).filter((_, idx) => idx !== i))} />
+                    </div>
+                  ))}
+                  <div><Button variant="ghost" size="sm" icon="plus" onClick={() => setPkg("overview", [...(pkg.overview || []), ""])}>Add paragraph</Button></div>
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Trip highlights" hint="Short highlight points shown on the package page">
+                <StringList value={pkg.highlights || []} onChange={(v) => setPkg("highlights", v)} placeholder="Ubud rice terraces & monkey forest" addLabel="Add highlight" />
+              </SectionCard>
+
               <SectionCard title="Who it's for" hint="Couples, families, friends… (shown as pills)">
                 <TagInput value={idealArrP} onChange={(arr) => setPkg("idealFor", arr.join(" · "))} placeholder="Couples" />
               </SectionCard>
