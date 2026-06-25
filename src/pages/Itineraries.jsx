@@ -13,9 +13,8 @@ function blankItinerary() {
     dateRangeLabel: "", priceLabel: "", priceUnit: "per couple", gstIncluded: true, priceTiers: [],
     greeting: "Our sales team has put together this quote for your upcoming trip. Please go through it and let us know if you would like any changes in any of the provided services. Our contact details are at the end.",
     heroImage: "",
-    trustBadges: ["Complete pre-trip and on-trip assistance", "No hidden charges", "Verified hotels and cabs"],
-    transport: [], visa: "",
-    segments: [], days: [], accommodations: [], notes: [], inclusions: [], exclusions: [], terms: [],
+    trustBadges: ["Complete pre-trip and on-trip assistance", "No hidden charges", "Hand-picked experiences"],
+    segments: [], days: [], notes: [], inclusions: [], exclusions: [], terms: [],
   };
 }
 

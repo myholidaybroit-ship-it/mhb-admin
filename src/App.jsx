@@ -5,7 +5,6 @@ import { ToastProvider } from "./ui/kit.jsx";
 import AdminShell from "./shell/AdminShell.jsx";
 import Login from "./shell/Login.jsx";
 
-import Dashboard from "./pages/Dashboard.jsx";
 import HomePage from "./pages/Home.jsx";
 import Contact from "./pages/Contact.jsx";
 import Destinations from "./pages/Destinations.jsx";
@@ -13,24 +12,15 @@ import Weekends from "./pages/Weekends.jsx";
 import AdventureStyles from "./pages/AdventureStyles.jsx";
 import Content from "./pages/Content.jsx";
 import Media from "./pages/Media.jsx";
-import Catalog from "./pages/Catalog.jsx";
-import Library from "./pages/Library.jsx";
 import Moments from "./pages/Moments.jsx";
 import Blogs from "./pages/Blogs.jsx";
 import Careers from "./pages/Careers.jsx";
 import Policies from "./pages/Policies.jsx";
 import Queries from "./pages/Queries.jsx";
-import QueryNew from "./pages/QueryNew.jsx";
 import QueryDetail from "./pages/QueryDetail.jsx";
-import Payments from "./pages/Payments.jsx";
-import FollowUps from "./pages/FollowUps.jsx";
-import SalesOverview from "./pages/SalesOverview.jsx";
-import Team from "./pages/Team.jsx";
-import CustomPackages from "./pages/CustomPackages.jsx";
-import PackageBuilder from "./pages/PackageBuilder.jsx";
-import PackageView from "./pages/PackageView.jsx";
 import Newsletter from "./pages/Newsletter.jsx";
 import Navigation from "./pages/Navigation.jsx";
+import Itineraries from "./pages/Itineraries.jsx";
 
 function Gate() {
   const { user, ready } = useAuth();
@@ -41,34 +31,31 @@ function Gate() {
       <StoreProvider>
         <Routes>
           <Route element={<AdminShell />}>
-            <Route index element={<Dashboard />} />
-            <Route path="home" element={<HomePage />} />
-            <Route path="contact" element={<Contact />} />
-            <Route path="newsletter" element={<Newsletter />} />
-            <Route path="navigation" element={<Navigation />} />
+            {/* Land on Destinations — the most-used content surface. */}
+            <Route index element={<Navigate to="/destinations" replace />} />
+
+            {/* Website content */}
             <Route path="destinations" element={<Destinations />} />
             <Route path="weekends" element={<Weekends />} />
-            <Route path="sales" element={<SalesOverview />} />
-            <Route path="queries" element={<Queries />} />
-            <Route path="queries/new" element={<QueryNew />} />
-            <Route path="queries/:id" element={<QueryDetail />} />
-            <Route path="followups" element={<FollowUps />} />
-            <Route path="payments" element={<Payments />} />
-            <Route path="team" element={<Team />} />
-            <Route path="packages" element={<CustomPackages />} />
-            <Route path="packages/new" element={<PackageBuilder />} />
-            <Route path="packages/:id" element={<PackageBuilder />} />
-            <Route path="packages/:id/view" element={<PackageView />} />
-            <Route path="catalog" element={<Catalog />} />
-            <Route path="itineraries" element={<Navigate to="/packages" replace />} />
-            <Route path="library" element={<Library />} />
             <Route path="adventure-styles" element={<AdventureStyles />} />
             <Route path="moments" element={<Moments />} />
             <Route path="blogs" element={<Blogs />} />
             <Route path="content" element={<Content />} />
-            <Route path="careers" element={<Careers />} />
             <Route path="policies" element={<Policies />} />
+            <Route path="careers" element={<Careers />} />
+            <Route path="home" element={<HomePage />} />
+            <Route path="navigation" element={<Navigation />} />
+            <Route path="contact" element={<Contact />} />
             <Route path="media" element={<Media />} />
+
+            {/* Itinerary + PDF builder */}
+            <Route path="itineraries" element={<Itineraries />} />
+
+            {/* Query inbox + newsletter */}
+            <Route path="queries" element={<Queries />} />
+            <Route path="queries/:id" element={<QueryDetail />} />
+            <Route path="newsletter" element={<Newsletter />} />
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

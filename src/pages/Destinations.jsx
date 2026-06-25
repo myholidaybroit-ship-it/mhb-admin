@@ -145,7 +145,7 @@ function blankDestination() {
   return {
     slug: "", name: "", country: "", region: "India", image: "", imageKey: "",
     fromPrice: "", rating: 4.7, reviews: 0, tagline: "", bestTime: "", bestMonths: [], idealFor: "",
-    style: "", groupMin: 2, groupMax: 12, visa: null,
+    style: "", groupMin: 2, groupMax: 12, visa: null, showGroupSize: false,
     overview: [], highlights: [], packages: [], itinerary: [],
     experiences: [], ageGroups: structuredClone(DEFAULT_AGE_GROUPS),
     inclusions: [...DEFAULT_INCLUSIONS], exclusions: [...DEFAULT_EXCLUSIONS],
@@ -270,6 +270,7 @@ function DestinationEditor({ value, onClose }) {
   const [d, setD] = useState(() => normalizeDestination(value || {}));
   const [tab, setTab] = useState("basics");
   const [itinPkg, setItinPkg] = useState(0);
+  const [pkgDetIdx, setPkgDetIdx] = useState(0);
   const isNew = !value;
   const set = (patch) => setD((s) => ({ ...s, ...patch }));
   const setPay = (patch) => setD((s) => ({ ...s, payment: { ...s.payment, ...patch } }));
@@ -332,6 +333,7 @@ function DestinationEditor({ value, onClose }) {
           { value: "content", label: "Overview" },
           { value: "packages", label: `Packages (${d.packages.length})` },
           { value: "itinerary", label: `Itinerary (${d.packages[Math.min(itinPkg, Math.max(0, d.packages.length - 1))]?.itinerary?.length || 0})` },
+          { value: "pkgdetails", label: "Package details" },
           { value: "experiences", label: `Experiences (${d.experiences.length})` },
           { value: "included", label: "Inclusions & Policies" },
           { value: "info", label: "Good to know" },
@@ -391,6 +393,9 @@ function DestinationEditor({ value, onClose }) {
               </Field>
               <Field label="Visa note" hint="Leave blank for domestic">
                 <Input value={d.visa || ""} onChange={(e) => set({ visa: e.target.value || null })} placeholder="Visa on arrival" />
+              </Field>
+              <Field label="Show group size on website" hint="Off = no group-size restriction shown (solo travellers welcome). Turn on to display the range below on the trip page.">
+                <Toggle checked={!!d.showGroupSize} onChange={(v) => set({ showGroupSize: v })} label={d.showGroupSize ? "Shown on site" : "Hidden"} />
               </Field>
               {(() => {
                 const mode = groupMode(idealArr);
@@ -548,6 +553,82 @@ function DestinationEditor({ value, onClose }) {
                   </div>
                 )}
               />
+            </div>
+          );
+        })()}
+
+        {/* ---------------- PACKAGE DETAILS (per package) ---------------- */}
+        {tab === "pkgdetails" && (() => {
+          if (!d.packages.length) {
+            return (
+              <div className="card-soft col gap-3" style={{ alignItems: "flex-start" }}>
+                <p className="muted" style={{ margin: 0 }}>Add a package on the <strong>Packages</strong> tab first — each package can have its own who-it's-for, inclusions, exclusions, good-to-know and FAQs.</p>
+                <Button variant="secondary" icon="plus" onClick={() => setTab("packages")}>Go to Packages</Button>
+              </div>
+            );
+          }
+          const pd = Math.min(pkgDetIdx, d.packages.length - 1);
+          const pkg = d.packages[pd];
+          const setPkg = (field, val) => set({ packages: d.packages.map((p, i) => (i === pd ? { ...p, [field]: val } : p)) });
+          const idealArrP = (pkg.idealFor || "").split("·").map((s) => s.trim()).filter(Boolean);
+          return (
+            <div className="col gap-5">
+              <div>
+                <div className="field-label" style={{ marginBottom: 8 }}>Select a package</div>
+                <div className="chip-select">
+                  {d.packages.map((p, i) => (
+                    <button type="button" key={i} className={`chip ${i === pd ? "on" : ""}`} onClick={() => setPkgDetIdx(i)}>
+                      {p.name || `Package ${i + 1}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="tiny muted" style={{ margin: 0 }}>
+                These show on the <strong>{pkg.name || `Package ${pd + 1}`}</strong> page. Leave any blank to fall back to the destination-level value.
+              </p>
+
+              <SectionCard title="Who it's for" hint="Couples, families, friends… (shown as pills)">
+                <TagInput value={idealArrP} onChange={(arr) => setPkg("idealFor", arr.join(" · "))} placeholder="Couples" />
+              </SectionCard>
+
+              <SectionCard title="What's included" hint="Green list on the package page">
+                <StringList value={pkg.inclusions || []} onChange={(v) => setPkg("inclusions", v)} placeholder="Daily breakfast at the hotel" addLabel="Add inclusion" />
+              </SectionCard>
+              <SectionCard title="Not included">
+                <StringList value={pkg.exclusions || []} onChange={(v) => setPkg("exclusions", v)} placeholder="Airfare" addLabel="Add exclusion" />
+              </SectionCard>
+
+              <SectionCard title="Good to know" hint="Quick facts grid on the package page">
+                <Repeater
+                  value={pkg.goodToKnow || []}
+                  onChange={(v) => setPkg("goodToKnow", v)}
+                  blank={{ label: "", value: "" }}
+                  title={(i, f) => f.label || `Fact ${i + 1}`}
+                  addLabel="Add fact"
+                  renderItem={(f, update) => (
+                    <div className="row gap-3 wrap" style={{ alignItems: "flex-end" }}>
+                      <Field label="Label" className="grow"><Input value={f.label} onChange={(e) => update({ label: e.target.value })} placeholder="Currency" /></Field>
+                      <Field label="Value" className="grow"><Input value={f.value} onChange={(e) => update({ value: e.target.value })} placeholder="INR (₹)" /></Field>
+                    </div>
+                  )}
+                />
+              </SectionCard>
+
+              <SectionCard title="Quick FAQs">
+                <Repeater
+                  value={pkg.faqs || []}
+                  onChange={(v) => setPkg("faqs", v)}
+                  blank={{ q: "", a: "" }}
+                  title={(i, f) => f.q || `FAQ ${i + 1}`}
+                  addLabel="Add FAQ"
+                  renderItem={(f, update) => (
+                    <div className="col gap-2">
+                      <Field label="Question"><Input value={f.q} onChange={(e) => update({ q: e.target.value })} /></Field>
+                      <Field label="Answer"><Textarea value={f.a} onChange={(e) => update({ a: e.target.value })} /></Field>
+                    </div>
+                  )}
+                />
+              </SectionCard>
             </div>
           );
         })()}

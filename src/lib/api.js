@@ -77,22 +77,15 @@ export function resource(path) {
 }
 
 // Named resources matching the registry in backend-mhb/src/config/resources.js.
+// Scoped to website content, the itinerary builder and the website query inbox.
 export const resources = {
   destinations: resource("destinations"),
   weekends: resource("weekends"),
   moments: resource("moments"),
   testimonials: resource("testimonials"),
-  places: resource("places"),
-  hotels: resource("hotels"),
-  transports: resource("transports"),
-  blocks: resource("blocks"),
   blogs: resource("blogs"),
-  tripTemplates: resource("trip-templates"),
   itineraries: resource("itineraries"),
   tripQueries: resource("trip-queries"),
-  teamMembers: resource("team-members"),
-  customPackages: resource("custom-packages"),
-  quoteTemplates: resource("quote-templates"),
 };
 
 // ── Singleton content sections ──────────────────────────────────────────────

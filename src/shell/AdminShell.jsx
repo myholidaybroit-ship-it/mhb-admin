@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { NAV_GROUPS } from "./nav.js";
+import { NAV_ITEMS } from "./nav.js";
 import { useAuth } from "./auth.jsx";
 import Icon from "../ui/icons.jsx";
 import { IconButton } from "../ui/kit.jsx";
@@ -8,12 +8,10 @@ import { IconButton } from "../ui/kit.jsx";
 const LOGO_WHITE = "https://res.cloudinary.com/dyxxkrq8r/image/upload/v1779211833/MHB_Logo_white_b2exxe.avif";
 
 function flatTitle(pathname) {
-  for (const g of NAV_GROUPS) {
-    for (const it of g.items) {
-      if (it.end ? pathname === it.to : pathname.startsWith(it.to) && it.to !== "/") return it.label;
-    }
+  for (const it of NAV_ITEMS) {
+    if (it.to !== "/" && pathname.startsWith(it.to)) return it.label;
   }
-  return "Dashboard";
+  return "MyHolidayBro";
 }
 
 export default function AdminShell() {
@@ -29,22 +27,17 @@ export default function AdminShell() {
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_GROUPS.map((group) => (
-            <div className="nav-group" key={group.title}>
-              <div className="nav-group-title">{group.title}</div>
-              {group.items.map((it) => (
-                <NavLink
-                  key={it.to}
-                  to={it.to}
-                  end={it.end}
-                  className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
-                  onClick={() => setOpen(false)}
-                >
-                  <Icon name={it.icon} size={18} />
-                  <span>{it.label}</span>
-                </NavLink>
-              ))}
-            </div>
+          {NAV_ITEMS.map((it) => (
+            <NavLink
+              key={it.to}
+              to={it.to}
+              end={it.end}
+              className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+              onClick={() => setOpen(false)}
+            >
+              <Icon name={it.icon} size={18} />
+              <span>{it.label}</span>
+            </NavLink>
           ))}
         </nav>
 
