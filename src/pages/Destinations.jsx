@@ -13,7 +13,6 @@ import { IconPicker, guessIcon, guessFactIcon } from "../ui/travelIcons.jsx";
 const REGIONS = ["India", "International"];
 const PKG_TAGS = ["Couple", "Honeymoon", "Friends", "Family", "Group", "Adventure", "Weekend", "Luxury"];
 const EXP_PACES = ["Half-day", "Full-day", "Morning", "Evening", "Optional", "2 – 3 hrs"];
-const DAY_CHIPS = ["Stay", "Breakfast", "Lunch", "Dinner", "Transfer", "Sightseeing", "Activity", "Flight"];
 const PAY_METHODS = ["Credit card", "Debit card", "Internet banking", "Bank transfer", "UPI", "Wallet"];
 const IDEAL_OPTIONS = ["Couple", "Solo", "Family", "Friends"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -532,7 +531,7 @@ function DestinationEditor({ value, onClose }) {
                 </div>
                 {days.length < pkg.days && (
                   <Button variant="ghost" size="sm" icon="plus"
-                    onClick={() => setDays([...days, ...Array.from({ length: pkg.days - days.length }, (_, k) => ({ day: days.length + k + 1, title: "", desc: "", chips: ["Stay", "Breakfast", "Transfer", "Sightseeing"] }))])}>
+                    onClick={() => setDays([...days, ...Array.from({ length: pkg.days - days.length }, (_, k) => ({ day: days.length + k + 1, title: "", desc: "", points: [] }))])}>
                     Fill {pkg.days - days.length} day{pkg.days - days.length > 1 ? "s" : ""}
                   </Button>
                 )}
@@ -540,15 +539,27 @@ function DestinationEditor({ value, onClose }) {
               <Repeater
                 value={days}
                 onChange={(v) => setDays(v.map((it, i) => ({ ...it, day: i + 1 })))}
-                blank={() => ({ day: days.length + 1, title: "", desc: "", chips: ["Stay", "Breakfast", "Transfer", "Sightseeing"] })}
+                blank={() => ({ day: days.length + 1, title: "", desc: "", points: [] })}
                 title={(i, it) => `Day ${i + 1}${it.title ? " · " + it.title : ""}`}
                 addLabel="Add day"
                 renderItem={(it, update) => (
                   <div className="col gap-3">
                     <Field label="Title"><Input value={it.title} onChange={(e) => update({ title: e.target.value })} placeholder="Arrival in Goa" /></Field>
                     <Field label="Description"><Textarea value={it.desc} onChange={(e) => update({ desc: e.target.value })} placeholder="Airport pickup, hotel check-in and Baga beach in the evening." /></Field>
-                    <Field label="Day chips" hint="What this day includes">
-                      <ChipSelect multiple value={it.chips || []} onChange={(chips) => update({ chips })} options={DAY_CHIPS} />
+                    <Field label="Pointers" hint="Short bullets shown under this day on the package page — pick an icon + write the text">
+                      <Repeater
+                        value={it.points || []}
+                        onChange={(points) => update({ points })}
+                        blank={{ icon: "mappin", text: "" }}
+                        title={(j, p) => p.text || `Point ${j + 1}`}
+                        addLabel="Add pointer"
+                        renderItem={(p, up) => (
+                          <div className="row gap-3" style={{ alignItems: "flex-end" }}>
+                            <Field label="Icon"><IconPicker value={p.icon} onChange={(icon) => up({ icon })} /></Field>
+                            <Field label="Text" className="grow"><Input value={p.text} onChange={(e) => up({ text: e.target.value, icon: p.icon || guessIcon(e.target.value) })} placeholder="Airport transfer" /></Field>
+                          </div>
+                        )}
+                      />
                     </Field>
                   </div>
                 )}
